@@ -1,0 +1,12 @@
+# Gradle project-specific cache directory
+.gradle/
+
+# Gradle build output directory
+build/
+
+# IDE files
+.idea/
+
+# folders for local usage
+local/
+temp/
