@@ -1,22 +1,22 @@
 plugins {
-    kotlin("jvm") version "2.0.0"
+    kotlin("jvm") version "2.1.10"
 }
 
-val junitVersion = "5.10.3"
+group = "au.concepta"
+version = "1.0-SNAPSHOT"
+
+val junitVersion = "5.12.0"
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
-    implementation("com.microsoft.playwright:playwright:1.45.1")
+    implementation("com.microsoft.playwright:playwright:1.50.0")
 
     // We use these as `implementation` as our main code is a testing framework itself
     implementation(kotlin("test"))
     implementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
-    testImplementation("org.junit.jupiter:junit-jupiter-params:$junitVersion")
-    testImplementation("ch.qos.logback:logback-classic:1.5.6")
-    implementation("org.assertj:assertj-core:3.26.3")
 }
 
 tasks.test {
