@@ -1,3 +1,5 @@
+![Mainline Build](https://github.com/Concepta-AU/playwright-kotlin/actions/workflows/build.yml/badge.svg?branch=main)
+
 Kotlin API for Playwright Java
 ==============================
 
