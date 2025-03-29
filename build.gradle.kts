@@ -1,5 +1,5 @@
 plugins {
-    kotlin("jvm") version "2.1.10"
+    kotlin("jvm") version "2.1.20"
     `java-library`
     `maven-publish`
     signing
@@ -8,14 +8,14 @@ plugins {
 group = "au.concepta"
 version = "1.0-SNAPSHOT"
 
-val junitVersion = "5.12.0"
+val junitVersion = "5.12.1"
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
-    implementation("com.microsoft.playwright:playwright:1.50.0")
+    implementation("com.microsoft.playwright:playwright:1.51.0")
 
     // We use these as `implementation` as our main code is a testing framework itself
     implementation(kotlin("test"))
