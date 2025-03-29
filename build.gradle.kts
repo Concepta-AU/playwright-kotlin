@@ -1,5 +1,8 @@
 plugins {
     kotlin("jvm") version "2.1.10"
+    `java-library`
+    `maven-publish`
+    signing
 }
 
 group = "au.concepta"
@@ -26,4 +29,39 @@ tasks.test {
 
 kotlin {
     jvmToolchain(21)
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            pom {
+                name = "Kotlin API for Playwright"
+                description = "A framework and utilities for using the Playwright automation framework with Kotlin."
+                url = "https://github.com/Concepta-AU/playwright-kotlin"
+                licenses {
+                    license {
+                        name = "The Unlicense"
+                        url = "https://unlicense.org/"
+                    }
+                }
+                developers {
+                    developer {
+                        name = "Peter Becker"
+                        email = "peter@concepta.au"
+                        organization = "Concepta Consulting Pty Ltd"
+                        organizationUrl = "https://concepta.au"
+                    }
+                }
+                scm {
+                    connection = "scm:git:git@github.com:Concepta-AU/playwright-kotlin.git"
+                    developerConnection = "scm:git:ssh://github.com:Concepta-AU/playwright-kotlin.git"
+                    url = "https://github.com/Concepta-AU/playwright-kotlin"
+                }
+            }
+        }
+    }
+}
+
+signing {
+    sign(publishing.publications["maven"])
 }
