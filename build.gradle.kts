@@ -13,18 +13,18 @@ plugins {
 
 group = "au.concepta"
 
-val junitVersion = "5.12.1"
+val junitVersion = "5.12.2"
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
-    implementation("com.microsoft.playwright:playwright:1.51.0")
+    api("com.microsoft.playwright:playwright:1.51.0")
 
-    // We use these as `implementation` as our main code is a testing framework itself
-    implementation(kotlin("test"))
-    implementation("org.junit.jupiter:junit-jupiter-api:$junitVersion")
+    // We use these as `api` as our main code is a testing framework itself
+    api(kotlin("test"))
+    api("org.junit.jupiter:junit-jupiter-api:$junitVersion")
 }
 
 tasks.test {
