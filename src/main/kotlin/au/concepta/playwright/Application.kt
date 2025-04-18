@@ -34,8 +34,6 @@ abstract class Application<T: ApplicationPage<T>> {
         options.locale = "en-AU"
         options
     })
-    protected var page: ApplicationPage<*>? = null
-        private set
     protected val baseUrl = findBaseUrl()
     protected var testRunning = false
         private set
@@ -97,9 +95,5 @@ abstract class Application<T: ApplicationPage<T>> {
             val traceLoc = folders.fold(Path.of("traces")) { acc, cur -> acc.resolve(cur) }.resolve("$file.zip")
             context.tracing().stop(Tracing.StopOptions().setPath(traceLoc))
         }
-    }
-
-    fun reload() {
-        page?.page?.reload()
     }
 }
