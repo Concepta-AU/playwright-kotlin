@@ -34,9 +34,11 @@ abstract class Application<T: ApplicationPage<T>> {
         options.locale = "en-AU"
         options
     })
-    private var page: ApplicationPage<*>? = null
-    private val baseUrl = findBaseUrl()
-    private var testRunning = false
+    protected var page: ApplicationPage<*>? = null
+        private set
+    protected val baseUrl = findBaseUrl()
+    protected var testRunning = false
+        private set
 
     private fun findBaseUrl(): String {
         if (System.getenv().containsKey("BASE_URL")) {
