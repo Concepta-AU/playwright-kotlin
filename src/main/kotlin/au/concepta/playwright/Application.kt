@@ -8,8 +8,8 @@ import java.nio.file.Path
 /**
  * An instance of this class represents the interactions with an application under test.
  *
- * Each test interacts with one or more instances of subclasses of this class. Multiple different implementation of this
- * base class may exist to represent different applications of a larger system, for example a point-of-sale and a
+ * Each test interacts with one or more instances of subclasses of this class. Multiple different implementations of this
+ * base class may exist to represent different applications of a larger system, for example, a point-of-sale and a
  * back-of-house system in a store, or a customer and an administration view of a single system.
  */
 abstract class Application<T: ApplicationPage<T>> {
