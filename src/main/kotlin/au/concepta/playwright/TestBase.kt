@@ -10,15 +10,23 @@ import org.junit.jupiter.api.extension.RegisterExtension
 
 val saveAllTraces: Boolean = "true" == System.getenv("SAVE_ALL_TRACES")
 
-open class TestBase {
-    private val apps: MutableMap<String, Application<*>> = mutableMapOf()
+open class TestBase<T: Application<*>> {
+    private val applications: MutableMap<String, T> = mutableMapOf()
+    protected open val defaultApplicationId: String = "default"
+
+    fun registerApplication(application: T, id: String = defaultApplicationId) {
+        applications[id] = application
+    }
+
+    fun getApplication(id: String = defaultApplicationId): T = applications[id] ?:
+        throw IllegalArgumentException("No application registered with id: $id")
 
     @RegisterExtension
-    val appShutdown = AppShutdown(apps)
+    val appShutdown = AppShutdown(applications)
 
     @AfterEach
     fun checkConsoleLogs() {
-        apps.forEach { (id, app) ->
+        applications.forEach { (id, app) ->
             println("==== Browser Console Log for $id ====")
             app.consoleMessages.forEach {
                 println(consoleLine(it))
@@ -27,7 +35,8 @@ open class TestBase {
         }
     }
 
-    private fun consoleLine(message: ConsoleMessage) = " ${message.type().uppercase().padEnd(8)} ${message.text()}"
+    private fun consoleLine(message: ConsoleMessage) =
+        " ${message.type().uppercase().padEnd(8)} ${message.text()}"
 }
 
 class AppShutdown(private val apps: Map<String, Application<*>>): AfterTestExecutionCallback {
