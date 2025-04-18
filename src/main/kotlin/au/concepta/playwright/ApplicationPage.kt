@@ -16,6 +16,11 @@ abstract class ApplicationPage<T : ApplicationPage<T>>(val page: Page, elementTo
         elementToWaitFor.waitFor()
     }
 
+    fun reload(): T {
+        page.reload()
+        return downcast()
+    }
+
     /*
      * To have the fluid API, we need to stay at the specific type, and we expect all implementations to reference
      * themselves. It would be nice to have a cleaner way of doing this, but we don't have one yet.
