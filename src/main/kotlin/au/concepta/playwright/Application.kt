@@ -1,9 +1,11 @@
-@file:Suppress("unused")
+@file:Suppress("unused", "MemberVisibilityCanBePrivate")
 
 package au.concepta.playwright
 
 import com.microsoft.playwright.*
 import java.nio.file.Path
+
+typealias ErrorPredicate = (String) -> Boolean
 
 /**
  * An instance of this class represents the interactions with an application under test.
@@ -17,8 +19,6 @@ abstract class Application<T: ApplicationPage<T>> {
      * Provide the default URL to open if no value was explicitly specified.
      */
     abstract val defaultBaseUrl: String
-    val consoleMessages: MutableList<ConsoleMessage> = mutableListOf()
-    var expectErrors = false
 
     private val playwright = Playwright.create()!!
     private val browser = playwright.chromium().launch(run {
@@ -35,8 +35,11 @@ abstract class Application<T: ApplicationPage<T>> {
         options
     })
     protected val baseUrl = findBaseUrl()
-    protected var testRunning = false
+    var testRunning = false
         private set
+    val consoleMessages: MutableList<ConsoleMessage> = mutableListOf()
+    val pageErrors: MutableList<String> = mutableListOf()
+    private val expectedErrors: MutableList<ErrorPredicate> = mutableListOf()
 
     private fun findBaseUrl(): String {
         if (System.getenv().containsKey("BASE_URL")) {
@@ -55,6 +58,14 @@ abstract class Application<T: ApplicationPage<T>> {
         testRunning = true
     }
 
+    fun expectError(pred: ErrorPredicate) {
+        expectedErrors += pred
+    }
+
+    fun expectError(message: String) {
+        expectError { it == message }
+    }
+
     /**
      * Provide the representation of the page the application will start with.
      *
@@ -64,27 +75,40 @@ abstract class Application<T: ApplicationPage<T>> {
 
     abstract fun getInitialApplicationPage(page: Page): T
 
-    private fun getBrowserPage(): Page {
-        val page = if (!testRunning) {
-            startTest()
+    private fun getBrowserPage(): Page  = if (!testRunning) {
+        startTest()
+        context.tracing().group("Set up")
+        try {
             val new = context.newPage()
+            configureNewPage(new)
             new.onConsoleMessage {
                 if (it.type() == "error") {
-                    if (!expectErrors) {
+                    if (!expectedErrors.any { p -> p.invoke(it.text()) }) {
                         throw AssertionError(
-                            "Caught browser error:\n${it.text()}"
+                            "Caught logged error: ${it.text()}"
                         )
                     }
                 }
                 consoleMessages += it
             }
+            new.onPageError {
+                if (!expectedErrors.any { p -> p.invoke(it) }) {
+                    throw AssertionError(
+                        "Caught page error: $it"
+                    )
+                }
+                pageErrors += it
+            }
+            new.navigate(baseUrl)
             new
-        } else {
-            context.pages().first()
+        } finally {
+            context.tracing().groupEnd()
         }
-        page.navigate(baseUrl, Page.NavigateOptions().setTimeout(20_000.0))
-        return page
+    } else {
+        context.pages().first()
     }
+
+    protected open fun configureNewPage(page: Page) {}
 
     fun stopTest(vararg hierarchicalName: String) {
         if (hierarchicalName.isEmpty()) {
@@ -95,5 +119,6 @@ abstract class Application<T: ApplicationPage<T>> {
             val traceLoc = folders.fold(Path.of("traces")) { acc, cur -> acc.resolve(cur) }.resolve("$file.zip")
             context.tracing().stop(Tracing.StopOptions().setPath(traceLoc))
         }
+        context.close()
     }
 }

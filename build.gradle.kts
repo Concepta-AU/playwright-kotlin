@@ -21,6 +21,7 @@ repositories {
 
 dependencies {
     api("com.microsoft.playwright:playwright:1.51.0")
+    api("com.deque.html.axe-core:playwright:4.10.1")
 
     // We use these as `api` as our main code is a testing framework itself
     api(kotlin("test"))
