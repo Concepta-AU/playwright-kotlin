@@ -1,7 +1,8 @@
-@file:Suppress("unused")
+@file:Suppress("unused", "MemberVisibilityCanBePrivate")
 
 package au.concepta.playwright
 
+import com.deque.html.axecore.playwright.AxeBuilder
 import com.microsoft.playwright.Locator
 import com.microsoft.playwright.Page
 import com.microsoft.playwright.PlaywrightException
@@ -28,6 +29,17 @@ abstract class ApplicationPage<T : ApplicationPage<T>>(val page: Page, elementTo
     @Suppress("UNCHECKED_CAST")
     protected fun downcast(): T {
         return this as T
+    }
+
+    fun validateAccessibility(): T {
+        val report = AxeBuilder(page).analyze()
+        if(report.violations.isNotEmpty()) {
+            throw AssertionError(
+                "Accessibility violations found:\n" +
+                        report.violations.joinToString("\n") { "[${it.id}] ${it.impact}: ${it.description}" }
+            )
+        }
+        return downcast()
     }
 
     protected fun assertElementNotVisible(element: Locator, name: String) {

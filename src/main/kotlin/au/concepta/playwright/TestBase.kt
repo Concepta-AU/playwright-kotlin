@@ -25,13 +25,22 @@ open class TestBase<T: Application<*>> {
     val appShutdown = AppShutdown(applications)
 
     @AfterEach
-    fun checkConsoleLogs() {
+    fun printConsoleLogsAndErrors() {
         applications.forEach { (id, app) ->
-            println("==== Browser Console Log for $id ====")
-            app.consoleMessages.forEach {
-                println(consoleLine(it))
+            if (app.consoleMessages.isNotEmpty()) {
+                println("==== Browser Console Log for $id ====")
+                app.consoleMessages.forEach {
+                    println(consoleLine(it))
+                }
+                println()
             }
-            println()
+            if (app.pageErrors.isNotEmpty()) {
+                println("==== Page Errors Caught in $id ====")
+                app.pageErrors.forEach {
+                    println(" $it")
+                }
+                println()
+            }
         }
     }
 
@@ -41,9 +50,10 @@ open class TestBase<T: Application<*>> {
 
 class AppShutdown(private val apps: Map<String, Application<*>>): AfterTestExecutionCallback {
     override fun afterTestExecution(context: ExtensionContext) {
+        val runningApps = apps.filter { it.value.testRunning }
         if(saveAllTraces || context.executionException.isPresent) {
-            apps.forEach { (id, app) ->
-                val suffix = when (apps.size) {
+            runningApps.forEach { (id, app) ->
+                val suffix = when (runningApps.size) {
                     1 -> ""
                     else -> "-$id"
                 }
@@ -54,7 +64,7 @@ class AppShutdown(private val apps: Map<String, Application<*>>): AfterTestExecu
                 )
             }
         } else {
-            apps.forEach { (_, app) -> app.stopTest() }
+            runningApps.forEach { (_, app) -> app.stopTest() }
         }
     }
 }
