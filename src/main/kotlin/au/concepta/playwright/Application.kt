@@ -41,7 +41,7 @@ abstract class Application<T: ApplicationPage<T>> {
     val pageErrors: MutableList<String> = mutableListOf()
     private val expectedErrors: MutableList<ErrorPredicate> = mutableListOf()
 
-    private fun findBaseUrl(): String {
+    protected fun findBaseUrl(): String {
         if (System.getenv().containsKey("BASE_URL")) {
             return System.getenv()["BASE_URL"]!!
         }
