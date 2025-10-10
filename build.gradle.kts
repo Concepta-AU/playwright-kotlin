@@ -1,26 +1,27 @@
+import com.github.benmanes.gradle.versions.updates.DependencyUpdatesTask
 import com.vanniktech.maven.publish.JavadocJar
 import com.vanniktech.maven.publish.KotlinJvm
-import com.vanniktech.maven.publish.SonatypeHost
-
-plugins {
-    kotlin("jvm") version "2.1.20"
-    `java-library`
-    `maven-publish`
-    signing
-    id("com.vanniktech.maven.publish") version "0.31.0"
-    id("org.jetbrains.dokka") version "2.0.0"
-}
-
-group = "au.concepta"
-
-val junitVersion = "5.12.2"
 
 repositories {
     mavenCentral()
 }
 
+plugins {
+    kotlin("jvm") version "2.2.20"
+    `java-library`
+    `maven-publish`
+    signing
+    id("com.vanniktech.maven.publish") version "0.34.0"
+    id("org.jetbrains.dokka") version "2.0.0"
+    id("com.github.ben-manes.versions") version "0.53.0"
+}
+
+group = "au.concepta"
+
+val junitVersion = "5.14.0"
+
 dependencies {
-    api("com.microsoft.playwright:playwright:1.51.0")
+    api("com.microsoft.playwright:playwright:1.55.0")
     api("com.deque.html.axe-core:playwright:4.10.1")
 
     // We use these as `api` as our main code is a testing framework itself
@@ -37,7 +38,24 @@ kotlin {
     jvmToolchain(21)
 }
 
-// see https://vanniktech.github.io/gradle-maven-publish-plugin/central/ on how to configure the properties for this
+fun isPrerelease(candidate: ModuleComponentIdentifier): Boolean {
+    val lcVersion = candidate.version.lowercase()
+    return lcVersion.contains("-alpha") ||
+            lcVersion.contains("-beta") ||
+            lcVersion.matches(".*-rc\\d*".toRegex()) ||
+            lcVersion.matches(".*-m\\d+".toRegex())
+}
+
+// https://github.com/ben-manes/gradle-versions-plugin
+tasks.withType<DependencyUpdatesTask> {
+    rejectVersionIf {
+        isPrerelease(candidate) ||
+                // not doing jUnit 6 just yet
+                candidate.group == "org.junit.jupiter" || candidate.version.startsWith("6.0")
+    }
+}
+
+// https://vanniktech.github.io/gradle-maven-publish-plugin/central/
 mavenPublishing {
     configure(
         KotlinJvm(
@@ -46,7 +64,7 @@ mavenPublishing {
         )
     )
 
-    publishToMavenCentral(SonatypeHost.CENTRAL_PORTAL, automaticRelease = true)
+    publishToMavenCentral(automaticRelease = true)
     signAllPublications()
 
     coordinates(project.group.toString(), rootProject.name, project.version.toString())
