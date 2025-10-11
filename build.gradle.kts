@@ -27,6 +27,8 @@ dependencies {
     // We use these as `api` as our main code is a testing framework itself
     api(kotlin("test"))
     api("org.junit.jupiter:junit-jupiter-api:$junitVersion")
+
+    testImplementation("org.assertj:assertj-core:3.27.6")
 }
 
 tasks.test {

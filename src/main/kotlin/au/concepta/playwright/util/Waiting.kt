@@ -11,6 +11,7 @@ fun waitUntil(
     attempts: Int = 50,
     waitTime: Duration = Duration.ofMillis(100),
     errorMessage: String = "Failed waiting for $attempts attempts",
+    onFail: () -> Unit = { throw AssertionError(errorMessage) },
     predicate: () -> Boolean,
 ) {
     var count = 0
@@ -20,7 +21,7 @@ fun waitUntil(
         }
         Thread.sleep(waitTime.toMillis())
     }
-    throw AssertionError(errorMessage)
+    onFail()
 }
 
 /**
@@ -31,6 +32,7 @@ fun <T> waitFor(
     attempts: Int = 50,
     waitTime: Duration = Duration.ofMillis(100),
     errorMessage: String = "Failed to create object for $attempts attempts",
+    onFail: () -> T = { throw AssertionError(errorMessage) },
     constructor: () -> T?,
 ): T {
     var count = 0
@@ -41,7 +43,7 @@ fun <T> waitFor(
         }
         Thread.sleep(waitTime.toMillis())
     }
-    throw AssertionError(errorMessage)
+    return onFail()
 }
 
 /**
@@ -51,6 +53,7 @@ fun retry(
     attempts: Int = 50,
     waitTime: Duration = Duration.ofMillis(100),
     errorMessage: String = "Failed validation for $attempts attempts",
+    onFail: (Throwable?) -> Unit = { lastError -> throw AssertionError(errorMessage, lastError) },
     block: () -> Unit,
 ) {
     var count = 0
@@ -64,5 +67,5 @@ fun retry(
         }
         Thread.sleep(waitTime.toMillis())
     }
-    throw AssertionError(errorMessage, lastError)
+    onFail(lastError)
 }
