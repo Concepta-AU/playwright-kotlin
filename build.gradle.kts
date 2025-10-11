@@ -22,7 +22,7 @@ val junitVersion = "5.14.0"
 
 dependencies {
     api("com.microsoft.playwright:playwright:1.55.0")
-    api("com.deque.html.axe-core:playwright:4.10.1")
+    api("com.deque.html.axe-core:playwright:4.10.2")
 
     // We use these as `api` as our main code is a testing framework itself
     api(kotlin("test"))
