@@ -26,14 +26,16 @@ abstract class Application<T: ApplicationPage<T>> {
         val speed = System.getenv()["VIEW_SPEED"]?.toDouble()
         options.headless = speed == null
         options.slowMo = speed
-        options
+        modifyBrowserLaunchOptions(options)
     })
+
     private val context = browser.newContext(run {
         val options = Browser.NewContextOptions()
         options.recordVideoDir = System.getenv()["VIDEO_DIR"]?.let { Path.of(it) }
         options.locale = "en-AU"
-        options
+        modifyBrowserContext(options)
     })
+
     protected val baseUrl = findBaseUrl()
     var testRunning = false
         private set
@@ -51,6 +53,20 @@ abstract class Application<T: ApplicationPage<T>> {
         }
         return defaultBaseUrl
     }
+
+    /**
+     * Can be used to adjust the options for the browser objects created. The object passed in is the options object
+     * that would be normally used, it can be adjusted or replaced in this method. Adjusting is recommended to maintain
+     * the standard logic used to handle command line options.
+     */
+    protected open fun modifyBrowserLaunchOptions(defaultOptions: BrowserType.LaunchOptions): BrowserType.LaunchOptions = defaultOptions
+
+    /**
+     * Can be used to adjust the options for the browser contexts created. The object passed in is the options object
+     * that would be normally used, it can be adjusted or replaced in this method. Adjusting is recommended to maintain
+     * the standard logic used to handle command line options.
+     */
+    protected open fun modifyBrowserContext(defaultOptions: Browser.NewContextOptions): Browser.NewContextOptions = defaultOptions
 
     fun startTest() {
         context.setDefaultTimeout(10_000.0)
