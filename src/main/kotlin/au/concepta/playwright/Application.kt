@@ -41,7 +41,11 @@ abstract class Application<T: ApplicationPage<T>> {
     val pageErrors: MutableList<String> = mutableListOf()
     private val expectedErrors: MutableList<ErrorPredicate> = mutableListOf()
 
-    protected fun findBaseUrl(): String {
+    /**
+     * Override the logic how a base URL is determined. Usually it is sufficient to just set the [defaultBaseUrl], but
+     * replacing the implementation here can be used if calculations are needed.
+     */
+    protected open fun findBaseUrl(): String {
         if (System.getenv().containsKey("BASE_URL")) {
             return System.getenv()["BASE_URL"]!!
         }
