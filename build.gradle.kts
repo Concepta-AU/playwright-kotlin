@@ -7,7 +7,7 @@ repositories {
 }
 
 plugins {
-    kotlin("jvm") version "2.2.20"
+    kotlin("jvm") version "2.2.21"
     `java-library`
     `maven-publish`
     signing
@@ -21,8 +21,13 @@ group = "au.concepta"
 val junitVersion = "5.14.0"
 
 dependencies {
-    api("com.microsoft.playwright:playwright:1.55.0")
-    api("com.deque.html.axe-core:playwright:4.10.2")
+    api("com.microsoft.playwright:playwright:1.56.0")
+    api("com.deque.html.axe-core:playwright:4.10.2", {
+        exclude(group = "org.apache.commons", module = "commons-lang3")
+    })
+    // Commons-lang4 is added only for axe-core, which would otherwise introduce a vulnerable version.
+    // Should be removed together with the exclude above once axe-core is updated.
+    api("org.apache.commons:commons-lang3:3.19.0")
 
     // We use these as `api` as our main code is a testing framework itself
     api(kotlin("test"))
