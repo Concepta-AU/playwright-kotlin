@@ -11,7 +11,7 @@ plugins {
     `java-library`
     `maven-publish`
     signing
-    id("com.vanniktech.maven.publish") version "0.34.0"
+    id("com.vanniktech.maven.publish") version "0.35.0"
     id("org.jetbrains.dokka") version "2.1.0"
     id("com.github.ben-manes.versions") version "0.53.0"
 }
@@ -22,12 +22,7 @@ val junitVersion = "5.14.0"
 
 dependencies {
     api("com.microsoft.playwright:playwright:1.56.0")
-    api("com.deque.html.axe-core:playwright:4.10.2", {
-        exclude(group = "org.apache.commons", module = "commons-lang3")
-    })
-    // Commons-lang4 is added only for axe-core, which would otherwise introduce a vulnerable version.
-    // Should be removed together with the exclude above once axe-core is updated.
-    api("org.apache.commons:commons-lang3:3.19.0")
+    api("com.deque.html.axe-core:playwright:4.11.0")
 
     // We use these as `api` as our main code is a testing framework itself
     api(kotlin("test"))
