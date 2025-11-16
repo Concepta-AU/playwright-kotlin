@@ -29,12 +29,14 @@ abstract class Application<T: ApplicationPage<T>> {
         modifyBrowserLaunchOptions(options)
     })
 
-    private val context = browser.newContext(run {
-        val options = Browser.NewContextOptions()
-        options.recordVideoDir = System.getenv()["VIDEO_DIR"]?.let { Path.of(it) }
-        options.locale = "en-AU"
-        modifyBrowserContext(options)
-    })
+    private lateinit var context: BrowserContext
+
+    private fun createContext(): BrowserContext = browser.newContext(run {
+            val options = Browser.NewContextOptions()
+            options.recordVideoDir = System.getenv()["VIDEO_DIR"]?.let { Path.of(it) }
+            options.locale = "en-AU"
+            modifyBrowserContext(options)
+        })
 
     protected val baseUrl = findBaseUrl()
     var testRunning = false
@@ -68,7 +70,8 @@ abstract class Application<T: ApplicationPage<T>> {
      */
     protected open fun modifyBrowserContext(defaultOptions: Browser.NewContextOptions): Browser.NewContextOptions = defaultOptions
 
-    fun startTest() {
+    private fun startTest() {
+        context = createContext()
         context.setDefaultTimeout(10_000.0)
         context.tracing().start(
             Tracing.StartOptions()
