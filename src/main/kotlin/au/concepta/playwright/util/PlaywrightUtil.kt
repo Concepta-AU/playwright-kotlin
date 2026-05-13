@@ -64,3 +64,6 @@ fun String.quoteForXPath() = if (contains('\'')) {
 } else {
     "'$this'"
 }
+
+fun Page.getById(id: String) = locator("#${id.replace(".", "\\.")}")
+fun Locator.getById(id: String) = locator("#${id.replace(".", "\\.")}")

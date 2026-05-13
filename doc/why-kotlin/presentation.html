@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>E2E Testing: Why Kotlin?</title>
+
+    <link href="https://fonts.googleapis.com/css?family=Roboto:100,100i,300,300i,400,400i,700,700i%7CMaitree:200,300,400,600,700&amp;subset=latin-ext"
+          rel="stylesheet">
+
+    <link rel="stylesheet" type='text/css' media='all' href="./static/css/webslides.css">
+    <link rel="stylesheet" type="text/css" media="all" href="./static/css/svg-icons.css">
+
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#333333">
+</head>
+<body>
+<main role="main">
+    <article id="webslides">
+        <section class="bg-black-blue aligncenter">
+            <div class="wrap">
+                <p class="text-subtitle">E2E Testing</p>
+                <h1 class="text-landing">Why Kotlin?</h1>
+            </div>
+        </section>
+        <section class="bg-black-blue aligncenter">
+            <div class="wrap">
+                <h1 class="text-landing">Why Kotlin?</h1>
+            </div>
+        </section>
+        <section class="bg-black-blue aligncenter">
+            <div class="wrap">
+                <div class="content-center">
+                    <h1 class="text-landing">Context</h1>
+                    <p></p>
+                    <p>E2E testing for web apps</p>
+                    <p>Playwright as web driver</p>
+                    <p>Gradle/jUnit as test runner</p>
+                </div>
+            </div>
+        </section>
+        <section class="bg-black-blue aligncenter">
+            <div class="wrap">
+                <div class="content-center">
+                    <h1 class="text-landing">Why start with E2E testing?</h1>
+                    <p></p>
+                    <p>Smaller code base</p>
+                    <p>Simpler code</p>
+                    <p>Lower risk profile</p>
+                    <p>Good fit</p>
+                </div>
+            </div>
+        </section>
+        <section class="bg-black-blue aligncenter">
+            <div class="wrap">
+                <div class="content-center">
+                    <h1 class="text-landing">Arbitrary function names</h1>
+                </div>
+            </div>
+        </section>
+        <section class="bg-black-blue aligncenter">
+            <pre>
+                fun `do you want 🍟 with this?`() {
+                    print("This works")
+                }
+
+                fun main() {
+                    `do you want 🍟 with this?`()
+                }
+            </pre>
+        </section>
+        <section class="bg-black-blue aligncenter">
+            <div class="wrap">
+                <div class="content-center">
+                    <h1 class="text-landing">Named and defaultable parameters</h1>
+                </div>
+            </div>
+        </section>
+        <section class="bg-black-blue aligncenter">
+            <pre>
+                fun signUpCustomer(
+                    firstName: String = faker.firstName(),
+                    lastName: String = faker.lastName(),
+                    emailAddress: String = faker.emailAddress(),
+                    mobileNumber: String = faker.mobileNumber(),
+                ) {
+                    // do something
+                }
+
+                fun testAnything() {
+                    signUpCustomer()
+                    // ...
+                }
+
+                fun testEmail() {
+                    signUpCustomer(emailAddress = "my@email.org")
+                    // ...
+                }
+
+                fun testPhone() {
+                    signUpCustomer(mobileNumber = "+49177463728")
+                    // ...
+                }
+            </pre>
+        </section>
+        <section class="bg-black-blue aligncenter">
+            <pre>
+                data class Customer(
+                    val firstName: String = faker.firstName(),
+                    val lastName: String = faker.lastName(),
+                    val emailAddress: String = faker.emailAddress(),
+                    val mobileNumber: String = faker.mobileNumber(),
+                )
+
+                fun generalCustomer() {
+                    val customer = Customer()
+                    // ...
+                }
+
+                fun emailCustomer() {
+                    val customer = Customer(emailAddress = "my@email.org")
+                    // ...
+                }
+
+                fun phoneCustomer() {
+                    val customer = Customer(mobileNumber = "+49177463728")
+                    // ...
+                }
+            </pre>
+        </section>
+        <section class="bg-black-blue aligncenter">
+            <div class="wrap">
+                <div class="content-center">
+                    <h1 class="text-landing">Extension functions</h1>
+                </div>
+            </div>
+        </section>
+        <section class="bg-black-blue aligncenter">
+            <pre>
+                fun Page.getById(id: String) = locator("#${id.replace(".", "\\.")}")
+                fun Locator.getById(id: String) = locator("#${id.replace(".", "\\.")}")
+
+                fun String.quoteForXPath() = if (contains('\'')) {
+                    "concat(" + this.split('\'').joinToString(", \"'\", ") { "'$it'" } + ")"
+                } else {
+                    "'$this'"
+                }
+
+                // elsewhere
+                    val page = ... // Playwright page
+                    page.getById("componentX.label")
+
+                    val value = "someString"
+                    page.locator("//*[contains(@myAttribute, value.quoteForXPath())]")
+            </pre>
+        </section>
+        <section class="bg-black-blue aligncenter">
+            <div class="wrap">
+                <div class="content-center">
+                    <h1 class="text-landing">Lambdas</h1>
+                </div>
+            </div>
+        </section>
+        <section class="bg-black-blue aligncenter">
+            <pre>
+                fun validateCustomerData(block: (customer: Customer) -> Unit) {
+                    val customer = readCustomerFromPage()
+                    block(customer)
+                }
+
+                fun `test customer data shows correctly`() {
+                    // navigate to page showing customer data
+                    validateCustomerData { customer ->
+                        assertEquals("John", customer.firstName)
+                        assertEquals("Doe", customer.lastName)
+                        assertEquals("", customer.emailAddress)
+                        assertEquals("+61444555666", customer.mobileNumber)
+                    }
+                }
+            </pre>
+        </section>
+        <section class="bg-black-blue aligncenter">
+            <div class="wrap">
+                <div class="content-center">
+                    <h1 class="text-landing">Typesafe builders</h1>
+                </div>
+            </div>
+        </section>
+        <section class="bg-black-blue aligncenter">
+            <pre>
+                val result = html {
+                        head {
+                            title { +"HTML encoding with Kotlin" }
+                        }
+                        body {
+                            h1 { +"HTML encoding with Kotlin" }
+                //...
+
+                fun html(init: HTML.() -> Unit): HTML {
+                    val html = HTML()
+                    html.init()
+                    return html
+                }
+
+                fun head(init: Head.() -> Unit): Head {
+                    val head = Head()
+                    head.init()
+                    children.add(head)
+                    return head
+                }
+
+                class HTML() : Tag("html") { ... }
+                class Head() : Tag("head") { ... }
+            </pre>
+        </section>
+        <section class="bg-black-blue aligncenter">
+            <div class="wrap">
+                <div class="content-center">
+                    <h1 class="text-landing">Why not Kotlin?</h1>
+                    <p></p>
+                    <p>Yet another language and toolkit in the stack</p>
+                    <p>Leans towards functional programming</p>
+                    <p>Slower compile speeds</p>
+                </div>
+            </div>
+        </section>
+        <section class="bg-black-blue aligncenter">
+            <div class="wrap">
+                <div class="content-center">
+                    <h1 class="text-landing">Questions?</h1>
+                    <p></p>
+                    <p>peter@concepta.au</p>
+                </div>
+            </div>
+        </section>
+    </article>
+</main>
+
+<script src="./static/js/webslides.js"></script>
+
+<script>
+    window.ws = new WebSlides();
+</script>
+
+<script defer src="./static/js/svg-icons.js"></script>
+
+</body>
+</html>
