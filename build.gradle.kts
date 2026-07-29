@@ -1,19 +1,20 @@
 import com.github.benmanes.gradle.versions.updates.DependencyUpdatesTask
 import com.vanniktech.maven.publish.JavadocJar
 import com.vanniktech.maven.publish.KotlinJvm
+import com.vanniktech.maven.publish.SourcesJar
 
 repositories {
     mavenCentral()
 }
 
 plugins {
-    kotlin("jvm") version "2.2.21"
+    kotlin("jvm") version "2.4.10"
     `java-library`
     `maven-publish`
     signing
-    id("com.vanniktech.maven.publish") version "0.35.0"
-    id("org.jetbrains.dokka") version "2.1.0"
-    id("com.github.ben-manes.versions") version "0.53.0"
+    id("com.vanniktech.maven.publish") version "0.37.0"
+    id("org.jetbrains.dokka") version "2.2.0"
+    id("io.github.ben-manes.versions") version "0.56.0"
 }
 
 group = "au.concepta"
@@ -21,14 +22,14 @@ group = "au.concepta"
 val junitVersion = "5.14.0"
 
 dependencies {
-    api("com.microsoft.playwright:playwright:1.56.0")
-    api("com.deque.html.axe-core:playwright:4.11.0")
+    api("com.microsoft.playwright:playwright:1.61.0")
+    api("com.deque.html.axe-core:playwright:4.12.0")
 
     // We use these as `api` as our main code is a testing framework itself
     api(kotlin("test"))
     api("org.junit.jupiter:junit-jupiter-api:$junitVersion")
 
-    testImplementation("org.assertj:assertj-core:3.27.6")
+    testImplementation("org.assertj:assertj-core:3.27.7")
 }
 
 tasks.test {
@@ -62,7 +63,7 @@ mavenPublishing {
     configure(
         KotlinJvm(
             javadocJar = JavadocJar.Dokka("dokkaGenerate"),
-            sourcesJar = true,
+            sourcesJar = SourcesJar.Sources(),
         )
     )
 
