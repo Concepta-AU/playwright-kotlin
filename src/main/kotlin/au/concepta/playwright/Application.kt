@@ -13,8 +13,12 @@ typealias ErrorPredicate = (String) -> Boolean
  * Each test interacts with one or more instances of subclasses of this class. Multiple different implementations of this
  * base class may exist to represent different applications of a larger system, for example, a point-of-sale and a
  * back-of-house system in a store, or a customer and an administration view of a single system.
+ *
+ * Each instance owns a Playwright driver process and a browser, so instances are expensive and must be released
+ * with [close] once they are no longer needed. [TestBase] does that for every registered application after each
+ * test; code creating an application outside that base class should use it as a Kotlin `use` block resource.
  */
-abstract class Application<T: ApplicationPage<T>> {
+abstract class Application<T: ApplicationPage<T>>: AutoCloseable {
     /**
      * Provide the default URL to open if no value was explicitly specified.
      */
@@ -133,15 +137,44 @@ abstract class Application<T: ApplicationPage<T>> {
 
     protected open fun configureNewPage(page: Page) {}
 
+    /**
+     * Stop the currently running test, closing its browser context and writing its trace.
+     *
+     * Does nothing if no test is running, so it is safe to call more than once. The browser itself stays open and
+     * a subsequent [start] begins a new test in a fresh context; release the browser with [close].
+     */
     fun stopTest(vararg hierarchicalName: String) {
-        if (hierarchicalName.isEmpty()) {
-            context.tracing().stop()
-        } else {
-            val folders = hierarchicalName.dropLast(1)
-            val file = hierarchicalName.last()
-            val traceLoc = folders.fold(Path.of("traces")) { acc, cur -> acc.resolve(cur) }.resolve("$file.zip")
-            context.tracing().stop(Tracing.StopOptions().setPath(traceLoc))
+        if (!testRunning) return
+        testRunning = false
+        try {
+            if (hierarchicalName.isEmpty()) {
+                context.tracing().stop()
+            } else {
+                val folders = hierarchicalName.dropLast(1)
+                val file = hierarchicalName.last()
+                val traceLoc = folders.fold(Path.of("traces")) { acc, cur -> acc.resolve(cur) }.resolve("$file.zip")
+                context.tracing().stop(Tracing.StopOptions().setPath(traceLoc))
+            }
+        } finally {
+            context.close()
         }
-        context.close()
+    }
+
+    /**
+     * Release the browser and the Playwright driver process backing this application.
+     *
+     * Stops a still-running test first. The instance cannot be used afterwards. Failing to call this leaks an
+     * operating system process per instance for the lifetime of the JVM.
+     */
+    override fun close() {
+        try {
+            stopTest()
+        } finally {
+            try {
+                browser.close()
+            } finally {
+                playwright.close()
+            }
+        }
     }
 }
