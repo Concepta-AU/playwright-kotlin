@@ -42,3 +42,19 @@ The functionality added by this project includes:
  * manage creation of trace files and video recordings
  * automatically check for console and page errors when running tests
  * document usage patterns that have proven successful in practice
+ * provide a set of extension functions to make the Playwright API more concise
+
+An example of how the code in here makes the API more concise is the addition of named and defaulted parameters for
+the options of the Playwright `Page`, `Locator` and `Frame` classes. Using the Java API, doing for example an exact
+text match looks like this:
+
+```kotlin
+page.getByText("text", Page.GetByTextOptions().setExact(true))
+```
+
+This is not only verbose, but it also requires identifying the right options class to use. With the addition of named
+parameters, this becomes:
+
+```kotlin
+page.getByText("text", exact = true)
+```
