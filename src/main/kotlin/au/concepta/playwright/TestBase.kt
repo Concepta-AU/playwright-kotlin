@@ -15,11 +15,9 @@ open class TestBase<T: Application<*>> {
     protected open val defaultApplicationId: String = "default"
 
     /**
-     * Hand an application over to this base class, which closes it after the test.
+     * Hand an application over to this base class, which closes its context after the test.
      *
-     * Register an application immediately after constructing it and before any further set-up such as logging in:
-     * an application that is never registered is never closed, so its driver process and browser stay alive until
-     * the JVM exits.
+     * Register an application immediately after constructing it and before any further set-up such as logging in.
      */
     fun registerApplication(application: T, id: String = defaultApplicationId) {
         applications[id] = application
@@ -75,10 +73,8 @@ class AppShutdown(private val apps: Map<String, Application<*>>): AfterTestExecu
                 runningApps.forEach { (_, app) -> app.stopTest() }
             }
         } finally {
-            // Every application holds a Playwright driver process and a browser. With the default per-method test
-            // instance lifecycle a new one is created for each test, so anything left open here accumulates for the
-            // whole JVM - a suite of n tests would end up holding n browsers at once. Close them all, including any
-            // whose test never started, and do it even when writing a trace above failed.
+            // Close all registered applications (releasing per-test contexts and tracing), including any whose test
+            // never started, even if writing a trace above failed.
             apps.values.forEach { app ->
                 runCatching { app.close() }.onFailure { println("Failed to close application: $it") }
             }

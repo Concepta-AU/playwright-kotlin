@@ -14,9 +14,9 @@ typealias ErrorPredicate = (String) -> Boolean
  * base class may exist to represent different applications of a larger system, for example, a point-of-sale and a
  * back-of-house system in a store, or a customer and an administration view of a single system.
  *
- * Each instance owns a Playwright driver process and a browser, so instances are expensive and must be released
- * with [close] once they are no longer needed. [TestBase] does that for every registered application after each
- * test; code creating an application outside that base class should use it as a Kotlin `use` block resource.
+ * Each thread shares a single Playwright driver process and browser instance per application subclass.
+ * [close] releases the browser context associated with a test run; [TestBase] calls [close] for every registered
+ * application after each test.
  */
 abstract class Application<T: ApplicationPage<T>>: AutoCloseable {
     /**
@@ -24,14 +24,16 @@ abstract class Application<T: ApplicationPage<T>>: AutoCloseable {
      */
     abstract val defaultBaseUrl: String
 
-    private val playwright = Playwright.create()!!
-    private val browser = playwright.chromium().launch(run {
+    private val browser: Browser
+        get() = SharedBrowserManager.getOrCreateBrowser(this)
+
+    internal fun createLaunchOptions(): BrowserType.LaunchOptions {
         val options = BrowserType.LaunchOptions()
         val speed = System.getenv()["VIEW_SPEED"]?.toDouble()
         options.headless = speed == null
         options.slowMo = speed
-        modifyBrowserLaunchOptions(options)
-    })
+        return modifyBrowserLaunchOptions(options)
+    }
 
     private lateinit var context: BrowserContext
 
@@ -42,7 +44,7 @@ abstract class Application<T: ApplicationPage<T>>: AutoCloseable {
             modifyBrowserContext(options)
         })
 
-    protected val baseUrl = findBaseUrl()
+    protected open val baseUrl: String get() = findBaseUrl()
     var testRunning = false
         private set
     val consoleMessages: MutableList<ConsoleMessage> = mutableListOf()
@@ -161,20 +163,12 @@ abstract class Application<T: ApplicationPage<T>>: AutoCloseable {
     }
 
     /**
-     * Release the browser and the Playwright driver process backing this application.
+     * Release application resources associated with the current test.
      *
-     * Stops a still-running test first. The instance cannot be used afterwards. Failing to call this leaks an
-     * operating system process per instance for the lifetime of the JVM.
+     * Stops a still-running test and closes its browser context. The backing Playwright driver process and
+     * Chromium instance are shared per thread and remain open for subsequent tests.
      */
     override fun close() {
-        try {
-            stopTest()
-        } finally {
-            try {
-                browser.close()
-            } finally {
-                playwright.close()
-            }
-        }
+        stopTest()
     }
 }
