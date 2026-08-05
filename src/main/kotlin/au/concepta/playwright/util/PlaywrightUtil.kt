@@ -17,12 +17,24 @@ This file collects helper functions that make using Playwright's objects easier 
 @Deprecated("Use the 'name' parameter on Page.getByRole() instead, e.g. getByRole(role, name = \"foo\")", level = DeprecationLevel.WARNING)
 fun havingName(name: String) = Page.GetByRoleOptions().setName(name)!!
 
+/**
+ * Clear the current value and set a new value on an input element.
+ *
+ * Equivalent to calling `clear()` followed by `fill(value)`.
+ */
 fun Locator.setInputValue(value: String) {
     clear()
     fill(value)
 }
 
 // based on https://github.com/microsoft/playwright/issues/10667#issuecomment-2051477138
+/**
+ * Dispatch a file drop event on the element using the file at the given path.
+ *
+ * The file contents are read, base64-encoded, and passed to a JavaScript snippet that creates
+ * a `File` object and adds it to a `DataTransfer` instance, which is then used to dispatch
+ * a `drop` event. Useful for testing drag-and-drop file upload flows.
+ */
 @OptIn(ExperimentalEncodingApi::class)
 fun Locator.dropFile(path: Path) {
     val dataTransfer = page().evaluateHandle(
@@ -38,7 +50,12 @@ fun Locator.dropFile(path: Path) {
     dispatchEvent("drop", mapOf("dataTransfer" to dataTransfer))
 }
 
-// assumption: we are not running from a JAR so we can just use a path to the `src/test/resources` files
+/**
+ * Drop a file from `src/test/resources` via a drag-and-drop event.
+ *
+ * Resolves the resource path from the classpath and delegates to [dropFile].
+ * Assumes the project is not packaged as a JAR.
+ */
 fun Locator.dropResourceFile(resourceName: String) =
     dropFile(Path.of(Locator::class.java.getResource("/$resourceName")!!.toURI()))
 

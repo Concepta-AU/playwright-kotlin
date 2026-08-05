@@ -11,12 +11,22 @@ import com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import com.microsoft.playwright.options.WaitForSelectorState
 import org.opentest4j.AssertionFailedError
 
+/**
+ * Base class for page object representations within an application under test.
+ *
+ * Subclasses represent specific pages or screens, holding a reference to the Playwright [Page]
+ * and providing assertion helpers specific to that page's domain. The [page] is expected to be
+ * navigated to the relevant URL before this constructor is called.
+ */
 abstract class ApplicationPage<T : ApplicationPage<T>>(val page: Page, elementToWaitFor: Locator) {
     init {
         println("- ${this::class.java.simpleName} ${page.url()}")
         elementToWaitFor.waitFor()
     }
 
+    /**
+     * Reload the current page and return this page instance for method chaining.
+     */
     fun reload(): T {
         page.reload()
         return downcast()
@@ -27,10 +37,18 @@ abstract class ApplicationPage<T : ApplicationPage<T>>(val page: Page, elementTo
      * themselves. It would be nice to have a cleaner way of doing this, but we don't have one yet.
      */
     @Suppress("UNCHECKED_CAST")
+    /**
+     * Cast `this` to the concrete page type for fluid API support.
+     */
     protected fun downcast(): T {
         return this as T
     }
 
+    /**
+     * Run accessibility checks via axe-core and fail the test if any violations are found.
+     *
+     * Returns this page instance for method chaining.
+     */
     fun validateAccessibility(): T {
         val report = AxeBuilder(page).analyze()
         if(report.violations.isNotEmpty()) {
@@ -42,6 +60,13 @@ abstract class ApplicationPage<T : ApplicationPage<T>>(val page: Page, elementTo
         return downcast()
     }
 
+    /**
+     * Assert that the given element is not visible on the page.
+     *
+     * Uses Playwright's auto-retrying assertion (`isHidden()`) rather than a one-shot check,
+     * so it waits for the element to actually disappear. Fails if multiple elements match
+     * the locator (strict mode violation).
+     */
     protected fun assertElementNotVisible(element: Locator, name: String) {
         // mirrors assertElementVisible below: wait via Playwright's auto-retrying assertion rather than
         // sampling isVisible once, which loses whenever the app hasn't caught up yet with hiding the element.
@@ -64,6 +89,12 @@ abstract class ApplicationPage<T : ApplicationPage<T>>(val page: Page, elementTo
         }
     }
 
+    /**
+     * Assert that the given element is visible on the page.
+     *
+     * Uses Playwright's auto-retrying assertion (`isVisible()`) rather than a one-shot check,
+     * so it waits for the element to appear.
+     */
     protected fun assertElementVisible(element: Locator, name: String) {
         // do not use element.isVisible() as it is flaky -- see https://playwright.dev/docs/api/class-locator#locator-is-visible
         try {
@@ -73,6 +104,11 @@ abstract class ApplicationPage<T : ApplicationPage<T>>(val page: Page, elementTo
         }
     }
 
+    /**
+     * Assert that the given element is disabled.
+     *
+     * Times out if the element is not found.
+     */
     protected fun assertElementDisabled(element: Locator, name: String) {
         try {
             assertThat(element).isDisabled()
@@ -83,6 +119,11 @@ abstract class ApplicationPage<T : ApplicationPage<T>>(val page: Page, elementTo
         }
     }
 
+    /**
+     * Assert that the given element is enabled.
+     *
+     * Times out if the element is not found.
+     */
     protected fun assertElementEnabled(element: Locator, name: String) {
         try {
             assertThat(element).isEnabled()
@@ -93,6 +134,14 @@ abstract class ApplicationPage<T : ApplicationPage<T>>(val page: Page, elementTo
         }
     }
 
+    /**
+     * Assert that the element's text content contains the expected value.
+     *
+     * @param element The locator for the element to check.
+     * @param expected The expected text substring.
+     * @param name Human-readable name of the element for error messages.
+     * @param exact If `true`, requires an exact match; otherwise checks if the text contains the expected value.
+     */
     protected fun assertTextContent(element: Locator, expected: String, name: String, exact: Boolean = false) {
         val actual = element.textContent()
         val match = if (exact) actual == expected else actual.contains(expected)
@@ -101,6 +150,13 @@ abstract class ApplicationPage<T : ApplicationPage<T>>(val page: Page, elementTo
         }
     }
 
+    /**
+     * Assert that a form field has the expected value.
+     *
+     * @param field The locator for the input field.
+     * @param expected The expected input value.
+     * @param fieldName Human-readable name of the field for error messages.
+     */
     protected fun assertFieldContent(field: Locator, expected: String, fieldName: String) {
         val actual = field.inputValue()
         if (expected != actual) {
@@ -108,6 +164,12 @@ abstract class ApplicationPage<T : ApplicationPage<T>>(val page: Page, elementTo
         }
     }
 
+    /**
+     * Assert that a form field is not empty.
+     *
+     * @param field The locator for the input field.
+     * @param fieldName Human-readable name of the field for error messages.
+     */
     protected fun assertFieldNotEmpty(field: Locator, fieldName: String) {
         val actual = field.inputValue()
         if (actual == "") {
@@ -115,6 +177,11 @@ abstract class ApplicationPage<T : ApplicationPage<T>>(val page: Page, elementTo
         }
     }
 
+    /**
+     * Assert that a select element has the specified option selected.
+     *
+     * Matches by the option's `label` attribute, falling back to its text content.
+     */
     protected fun assertSelectOption(selectId: String, value: String) {
         val option = page.locator("#$selectId > option:checked")
         val actual = option.getAttribute("label").ifEmpty { option.textContent().trim() }
@@ -123,6 +190,9 @@ abstract class ApplicationPage<T : ApplicationPage<T>>(val page: Page, elementTo
         }
     }
 
+    /**
+     * Assert that a select element contains the specified option.
+     */
     protected fun assertSelectHasOption(selectId: String, value: String) {
         val options = page.querySelectorAll("#$selectId > option").map { it.textContent().trim() }
         if (!options.contains(value)) {
@@ -130,6 +200,11 @@ abstract class ApplicationPage<T : ApplicationPage<T>>(val page: Page, elementTo
         }
     }
 
+    /**
+     * Assert that a select element does not contain the specified option.
+     *
+     * Waits for the select's first option to be attached before checking.
+     */
     protected fun assertSelectDoesNotHaveOption(selectId: String, value: String) {
         waitForSelectToBeLoaded(selectId)
         val options = page.querySelectorAll("#$selectId > option").map {
