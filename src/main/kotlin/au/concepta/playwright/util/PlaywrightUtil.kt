@@ -14,6 +14,7 @@ import kotlin.io.path.readBytes
 This file collects helper functions that make using Playwright's objects easier in Kotlin.
  */
 
+@Deprecated("Use the 'name' parameter on Page.getByRole() instead, e.g. getByRole(role, name = \"foo\")", level = DeprecationLevel.WARNING)
 fun havingName(name: String) = Page.GetByRoleOptions().setName(name)!!
 
 fun Locator.setInputValue(value: String) {
