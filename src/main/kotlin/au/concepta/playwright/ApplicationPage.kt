@@ -43,11 +43,20 @@ abstract class ApplicationPage<T : ApplicationPage<T>>(val page: Page, elementTo
     }
 
     protected fun assertElementNotVisible(element: Locator, name: String) {
+        // mirrors assertElementVisible below: wait via Playwright's auto-retrying assertion rather than
+        // sampling isVisible once, which loses whenever the app hasn't caught up yet with hiding the element.
+        // isHidden() also treats a detached element as hidden, matching frameworks that remove rather than hide.
         try {
-            if (element.isVisible) {
-                throw AssertionError("Expected $name to be not visible, but it is")
+            assertThat(element).isHidden()
+        } catch (e: AssertionFailedError) {
+            // unlike the one-shot isVisible sample this replaces, isHidden() reports a strict-mode violation
+            // by wrapping it into this same AssertionFailedError rather than a distinct PlaywrightException
+            if (e.message?.contains("strict mode violation") == true) {
+                throw AssertionError("Expected $name to be not visible, but we found multiple", e)
             }
+            throw AssertionError("Expected $name to be not visible, but it is", e)
         } catch (e: PlaywrightException) {
+            // kept as a fallback in case a strict-mode violation ever surfaces unwrapped, as it does for isVisible
             if (e.message?.contains("strict mode violation") == true) {
                 throw AssertionError("Expected $name to be not visible, but we found multiple", e)
             }
