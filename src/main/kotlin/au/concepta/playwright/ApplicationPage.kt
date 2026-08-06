@@ -9,6 +9,7 @@ import com.microsoft.playwright.PlaywrightException
 import com.microsoft.playwright.TimeoutError
 import com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat
 import com.microsoft.playwright.options.WaitForSelectorState
+import au.concepta.playwright.util.retry
 import org.opentest4j.AssertionFailedError
 
 abstract class ApplicationPage<T : ApplicationPage<T>>(val page: Page, elementToWaitFor: Locator) {
@@ -89,56 +90,87 @@ abstract class ApplicationPage<T : ApplicationPage<T>>(val page: Page, elementTo
         } catch (e: AssertionFailedError) {
             throw AssertionError("Expected $name to be enabled, but it is not")
         } catch (e: TimeoutError) {
-            throw AssertionError("Expected $name to be disabled, but it was not found")
+            throw AssertionError("Expected $name to be enabled, but it was not found")
         }
     }
 
     protected fun assertTextContent(element: Locator, expected: String, name: String, exact: Boolean = false) {
-        val actual = element.textContent()
-        val match = if (exact) actual == expected else actual.contains(expected)
-        if (!match) {
-            throw AssertionError("Expected $name to contain '$expected', but got '$actual'")
+        // textContent() waits only for the element to be attached, not for its text to settle, so sampling it
+        // once loses whenever the app is still catching up. These assertions retry until the text matches.
+        try {
+            if (exact) assertThat(element).hasText(expected) else assertThat(element).containsText(expected)
+        } catch (e: AssertionFailedError) {
+            throw AssertionError("Expected $name to contain '$expected', but got '${element.textContent()}'", e)
         }
     }
 
     protected fun assertFieldContent(field: Locator, expected: String, fieldName: String) {
-        val actual = field.inputValue()
-        if (expected != actual) {
-            throw AssertionError("Expected asset to have $fieldName $expected, but we got $actual")
+        // hasValue retries, unlike a one-shot inputValue() read
+        try {
+            assertThat(field).hasValue(expected)
+        } catch (e: AssertionFailedError) {
+            throw AssertionError("Expected $fieldName to be '$expected', but we got '${field.inputValue()}'", e)
         }
     }
 
     protected fun assertFieldNotEmpty(field: Locator, fieldName: String) {
-        val actual = field.inputValue()
-        if (actual == "") {
-            throw AssertionError("Expected asset to have nothing set for $fieldName")
+        // hasValue retries, unlike a one-shot inputValue() read
+        try {
+            assertThat(field).not().hasValue("")
+        } catch (e: AssertionFailedError) {
+            throw AssertionError("Expected $fieldName to have a value, but it was empty", e)
         }
     }
 
     protected fun assertSelectOption(selectId: String, value: String) {
-        val option = page.locator("#$selectId > option:checked")
-        val actual = option.getAttribute("label").ifEmpty { option.textContent().trim() }
-        if (actual != value) {
-            throw AssertionError("Expected $selectId to have option '$value' selected, but it is '$actual'")
+        waitForSelectToBeLoaded(selectId)
+        retryAssertion {
+            val actual = selectedOptionLabel(selectId)
+            if (actual != value) {
+                throw AssertionError("Expected $selectId to have option '$value' selected, but it is '$actual'")
+            }
         }
     }
 
     protected fun assertSelectHasOption(selectId: String, value: String) {
-        val options = page.querySelectorAll("#$selectId > option").map { it.textContent().trim() }
-        if (!options.contains(value)) {
-            throw AssertionError("Expected $selectId to have option '$value', but it has not")
+        waitForSelectToBeLoaded(selectId)
+        retryAssertion {
+            if (!optionLabels(selectId).contains(value)) {
+                throw AssertionError("Expected $selectId to have option '$value', but it has not")
+            }
         }
     }
 
     protected fun assertSelectDoesNotHaveOption(selectId: String, value: String) {
         waitForSelectToBeLoaded(selectId)
-        val options = page.querySelectorAll("#$selectId > option").map {
-            it.textContent().trim().ifEmpty { it.getAttribute("label") }
-        }
-        if (options.contains(value)) {
-            throw AssertionError("Expected $selectId to not have option '$value', but it has")
+        retryAssertion {
+            if (optionLabels(selectId).contains(value)) {
+                throw AssertionError("Expected $selectId to not have option '$value', but it has")
+            }
         }
     }
+
+    /**
+     * Retries [check] until it passes or the attempts run out, then rethrows whatever it failed with last so the
+     * message reports the final observed state rather than a generic "ran out of attempts".
+     *
+     * Used for the `select` assertions, which have no auto-retrying Playwright equivalent to delegate to the way
+     * the element assertions above do.
+     */
+    private fun retryAssertion(check: () -> Unit) = retry(
+        onFail = { lastError -> throw lastError ?: AssertionError("Assertion failed without reporting an error") },
+        block = check,
+    )
+
+    private fun selectedOptionLabel(selectId: String): String {
+        val option = page.locator("#$selectId > option:checked")
+        return option.getAttribute("label")?.takeIf { it.isNotEmpty() } ?: option.textContent().trim()
+    }
+
+    private fun optionLabels(selectId: String): List<String> =
+        page.locator("#$selectId > option").all().map { option ->
+            option.textContent().trim().ifEmpty { option.getAttribute("label") ?: "" }
+        }
 
     private fun waitForSelectToBeLoaded(selectId: String) {
         page.locator("#$selectId > option:first-child")
