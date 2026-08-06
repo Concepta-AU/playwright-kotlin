@@ -8,7 +8,8 @@ repositories {
 }
 
 dependencies {
-    testImplementation("au.concepta:playwright-kotlin:0.8.0")
+    // test API (page objects, utility code) is treated as main code here, so this needs to be in `implementation` scope
+    implementation("au.concepta:playwright-kotlin:0.8.0")
     testImplementation("org.assertj:assertj-core:3.27.7")
     testImplementation("org.junit.jupiter:junit-jupiter:5.14.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.14.0")

@@ -1,8 +1,6 @@
 package au.concepta.playwright.swaglabs
 
 import au.concepta.playwright.Application
-import au.concepta.playwright.ApplicationPage
-import com.microsoft.playwright.Locator
 import com.microsoft.playwright.Page
 import com.microsoft.playwright.options.AriaRole
 import au.concepta.playwright.util.*
