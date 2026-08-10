@@ -33,6 +33,13 @@ fun goToExports(): ExportsPage {
 }
 ```
 
+Split Code for Test API from Tests
+----------------------------------
+
+Consider the page objects and utility methods an API for testing and put that into the `src/main` structure of your 
+build. The `src/test` can then contain only the tests. This makes it easier to review tests on their own, and it allows
+having a separation of ownership: `src/main` may be owned by the development team, `src/test` by the QA team.
+
 Use a Fluent API Style
 ----------------------
 

@@ -74,7 +74,10 @@ class MyAppPage(page: Page) : ApplicationPage<MyAppPage>(
 
 A core pattern recommended here is to use a fluent API style for all navigation and other interaction, where the return
 value of a method is the expected page the browser should be on after. This not only allows for a concise style in the
-tests.
+tests. See [recommended patterns](recommended-patterns.md) for more detail.
+
+Optionally override `configureNewPage(Page)` if your application needs to do something on every page, like configuring
+known JavaScript errors to ignore. Typically, that should not be needed but can help in some situations.
 
 Write a Test
 ------------

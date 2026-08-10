@@ -35,6 +35,12 @@ internal object SharedBrowserManager {
         })
     }
 
+    /**
+     * Get an existing browser for the application's subclass, or create a new one.
+     *
+     * Each thread maintains its own Playwright driver process and browser instance per application subclass.
+     * If the browser for the given application subclass is disconnected, it is replaced with a new one.
+     */
     fun getOrCreateBrowser(app: Application<*>): Browser {
         val key = app::class
         val map = threadLocalBrowsers.get()
@@ -57,6 +63,11 @@ internal object SharedBrowserManager {
         return shared.browser
     }
 
+    /**
+     * Close all registered browsers and clear all cached instances.
+     *
+     * Called during JVM shutdown via a shutdown hook.
+     */
     fun closeAll() {
         allBrowsers.forEach { shared ->
             runCatching { shared.close() }

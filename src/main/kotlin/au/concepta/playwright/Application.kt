@@ -44,10 +44,33 @@ abstract class Application<T: ApplicationPage<T>>: AutoCloseable {
             modifyBrowserContext(options)
         })
 
+    /**
+     * The effective base URL, resolved via [findBaseUrl]. Defaults to [defaultBaseUrl] but can be overridden
+     * by the `BASE_URL` environment variable.
+     */
     protected open val baseUrl: String get() = findBaseUrl()
+
+    /**
+     * Whether a test is currently running ([start] has been called and [stopTest] has not).
+     *
+     * Used by [TestBase] to determine whether to stop tracing and close the context after a test.
+     */
     var testRunning = false
         private set
+
+    /**
+     * Console messages captured during the current test run.
+     *
+     * Printed to stdout after each test via [TestBase.printConsoleLogsAndErrors].
+     */
     val consoleMessages: MutableList<ConsoleMessage> = mutableListOf()
+
+    /**
+     * Page errors captured during the current test run.
+     *
+     * Printed to stdout after each test. Errors that would normally fail the test are added here
+     * only if they were registered with [expectError].
+     */
     val pageErrors: MutableList<String> = mutableListOf()
     private val expectedErrors: MutableList<ErrorPredicate> = mutableListOf()
 
@@ -87,10 +110,20 @@ abstract class Application<T: ApplicationPage<T>>: AutoCloseable {
         testRunning = true
     }
 
+    /**
+     * Register an error predicate that suppresses test failure for matching console errors or page errors.
+     *
+     * Errors matching the predicate are still recorded in [consoleMessages] or [pageErrors] respectively.
+     */
     fun expectError(pred: ErrorPredicate) {
         expectedErrors += pred
     }
 
+    /**
+     * Register an exact error message that suppresses test failure for a matching console or page error.
+     *
+     * Equivalent to `expectError { it == message }`.
+     */
     fun expectError(message: String) {
         expectError { it == message }
     }
@@ -102,6 +135,11 @@ abstract class Application<T: ApplicationPage<T>>: AutoCloseable {
      */
     fun start(): T = getInitialApplicationPage(getBrowserPage())
 
+    /**
+     * Provide the representation of the page the application will start with.
+     *
+     * This should match the browser's view after the base URL was opened.
+     */
     abstract fun getInitialApplicationPage(page: Page): T
 
     private fun getBrowserPage(): Page  = if (!testRunning) {
@@ -137,6 +175,12 @@ abstract class Application<T: ApplicationPage<T>>: AutoCloseable {
         context.pages().first()
     }
 
+    /**
+     * Configure a newly created page before navigation.
+     *
+     * Override this method to set up page-level listeners or other configuration.
+     * Called by [getBrowserPage] after a new page is created but before it is navigated.
+     */
     protected open fun configureNewPage(page: Page) {}
 
     /**
