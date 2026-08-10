@@ -78,6 +78,15 @@ open class TestBase<T: Application<*>> {
                 }
                 println()
             }
+            if (app.transientErrors.isNotEmpty()) {
+                // These did not fail the test (see Application.tolerateTransientErrors), so this summary is the
+                // only way a reader of the output learns that the run was not a clean one.
+                println("==== ${app.transientErrors.size} Transient Error(s) Tolerated in $id ====")
+                app.transientErrors.forEach {
+                    println(" $it")
+                }
+                println()
+            }
         }
     }
 

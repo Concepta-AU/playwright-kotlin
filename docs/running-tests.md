@@ -51,6 +51,32 @@ app.expectError { it.contains("Expected error pattern") }
 
 Collected console messages and page errors are printed to stdout after each test.
 
+### Transient Transport Errors
+
+Errors where the browser reports that the *connection* died - `net::ERR_NETWORK_CHANGED` when the host's network
+configuration changes mid-request, `net::ERR_HTTP2_PING_FAILED` when a keepalive goes unanswered, and the other codes
+listed in `TRANSIENT_NET_ERROR_CODES` - are **tolerated by default**. Without that, a network hiccup fails whichever
+test happens to be running, with a message about a transport event rather than about what the test was doing.
+
+They are not silently dropped: each one is printed as it happens and again in a per-test summary,
+
+```
+==== 2 Transient Error(s) Tolerated in default ====
+ Failed to load resource: net::ERR_NETWORK_CHANGED
+```
+
+and collected in `Application.transientErrors`, so a run that swallowed twenty of them is visibly different from a
+clean one. The scope is deliberately narrow: errors saying the application asked for something wrong
+(`ERR_NAME_NOT_RESOLVED`, `ERR_CONNECTION_REFUSED`, an ordinary 404 or 500) still fail the test - see the KDoc on
+`TRANSIENT_NET_ERROR_CODES` for the reasoning per code. Note that the failed request is *not* retried, so a test
+may still fail afterwards because its data never arrived - on its own assertion, which is the point.
+
+Turn it off by overriding the property in your `Application` subclass:
+
+```kotlin
+override val tolerateTransientErrors = false
+```
+
 Accessibility Testing
 ---------------------
 

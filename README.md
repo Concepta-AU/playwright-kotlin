@@ -26,7 +26,8 @@ The functionality added by this project includes:
  * establish patterns of using [Page Object Models](https://playwright.dev/docs/pom) and higher level application
    abstractions
  * manage creation of trace files and video recordings
- * automatically check for console and page errors when running tests
+ * automatically check for console and page errors when running tests, while tolerating (and reporting) transient
+   transport errors, so a network hiccup does not fail an unrelated test
  * document usage patterns that have proven successful in practice
  * provide a set of extension functions to make the Playwright API more concise
 

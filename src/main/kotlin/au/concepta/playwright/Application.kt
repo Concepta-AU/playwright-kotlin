@@ -75,6 +75,30 @@ abstract class Application<T: ApplicationPage<T>>: AutoCloseable {
     private val expectedErrors: MutableList<ErrorPredicate> = mutableListOf()
 
     /**
+     * Transient transport errors tolerated during the current test run - see [tolerateTransientErrors].
+     *
+     * Each one is printed as it happens, and again after the test via [TestBase.printConsoleLogsAndErrors], so a
+     * run that quietly swallowed twenty of them is not indistinguishable from a clean one.
+     */
+    val transientErrors: MutableList<String> = mutableListOf()
+
+    /**
+     * Whether browser errors reporting a *transient* transport failure are tolerated instead of failing the test.
+     *
+     * On by default. When the network hiccups the browser logs a console error such as
+     * `Failed to load resource: net::ERR_NETWORK_CHANGED`, and without this whichever test happens to be running
+     * dies on it - reporting a transport event rather than anything to do with what it was testing.
+     * [isTransientError] decides which errors qualify: only those where the *connection* died, never those saying
+     * the application asked for something wrong.
+     *
+     * Tolerating the error does not retry the request, so a test may still fail afterwards because its data never
+     * arrived. That is the intent: it then fails on its own assertion, naming what it was actually doing.
+     *
+     * Override with `false` in a subclass to make every console and page error fail the test again.
+     */
+    protected open val tolerateTransientErrors: Boolean = true
+
+    /**
      * Override the logic how a base URL is determined. Usually it is sufficient to just set the [defaultBaseUrl], but
      * replacing the implementation here can be used if calculations are needed.
      */
@@ -129,6 +153,26 @@ abstract class Application<T: ApplicationPage<T>>: AutoCloseable {
     }
 
     /**
+     * Decide what to do with an error the browser reported: fail the test, or let it pass.
+     *
+     * Fails unless the error was registered with [expectError], or is a transient transport error and
+     * [tolerateTransientErrors] is on - a tolerated one is recorded in [transientErrors] and printed straight
+     * away, so it stays visible in the test output even if the test then passes.
+     *
+     * @return `true` if the caller should record the error as a regular error of the test run, `false` if it was
+     *   tolerated as transient and has already been recorded in [transientErrors].
+     */
+    private fun checkError(kind: String, text: String): Boolean {
+        if (expectedErrors.any { p -> p.invoke(text) }) return true
+        if (tolerateTransientErrors && isTransientError(text)) {
+            transientErrors += text
+            println("Tolerated transient error (#${transientErrors.size} of this test): $text")
+            return false
+        }
+        throw AssertionError("$kind: $text")
+    }
+
+    /**
      * Provide the representation of the page the application will start with.
      *
      * This should match the browser's view after the base URL was opened.
@@ -150,21 +194,14 @@ abstract class Application<T: ApplicationPage<T>>: AutoCloseable {
             configureNewPage(new)
             new.onConsoleMessage {
                 if (it.type() == "error") {
-                    if (!expectedErrors.any { p -> p.invoke(it.text()) }) {
-                        throw AssertionError(
-                            "Caught logged error: ${it.text()}"
-                        )
-                    }
+                    checkError("Caught logged error", it.text())
                 }
                 consoleMessages += it
             }
             new.onPageError {
-                if (!expectedErrors.any { p -> p.invoke(it) }) {
-                    throw AssertionError(
-                        "Caught page error: $it"
-                    )
+                if (checkError("Caught page error", it)) {
+                    pageErrors += it
                 }
-                pageErrors += it
             }
             new.navigate(baseUrl)
             new
