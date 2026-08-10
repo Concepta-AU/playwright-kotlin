@@ -1,10 +1,9 @@
 package au.concepta.playwright.swaglabs
 
 import au.concepta.playwright.TestBase
+import au.concepta.playwright.swaglabs.CheckoutInfoPage.CheckoutInfo
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
-import au.concepta.playwright.util.*
 
 class CheckoutTests : TestBase<SwagLabsApp>() {
     init {
@@ -15,92 +14,86 @@ class CheckoutTests : TestBase<SwagLabsApp>() {
 
     @Test
     fun `can complete checkout with single item`() {
-        app.start()
-            .loginAs("standard_user")
-            .run {
-                resetApp()
-                addProductToCartByIndex(0)
-                val overview = openCheckout()
-                    .fillInfo("John", "Doe", "12345")
-                val finish = overview.finish()
-                assertTrue(finish.page.locator("[data-test='title']").isVisible())
-            }
+        app.inventory()
+            .resetApp()
+            .addProductToCartByIndex(0)
+            .startCheckout()
+            .setCheckoutInfo(CheckoutInfo(firstName = "John", lastName = "Doe", zipCode = "12345"))
+            .finishCheckout()
+            .assertOrderComplete()
     }
 
     @Test
     fun `can complete checkout with multiple items`() {
-        app.start()
-            .loginAs("standard_user")
-            .run {
-                resetApp()
-                addProductToCartByIndex(0)
-                addProductToCartByIndex(2)
-                addProductToCartByIndex(5)
-                val overview = openCheckout()
-                    .fillInfo("Jane", "Smith", "90210")
-                val finish = overview.finish()
-                assertTrue(finish.page.locator("[data-test='title']").isVisible())
-            }
+        app.inventory()
+            .resetApp()
+            .addProductToCartByIndex(0)
+            .addProductToCartByIndex(2)
+            .addProductToCartByIndex(5)
+            .startCheckout()
+            .setCheckoutInfo(CheckoutInfo(firstName = "Jane", lastName = "Smith", zipCode = "90210"))
+            .finishCheckout()
+            .assertOrderComplete()
     }
 
     @Test
     fun `checkout overview shows correct items`() {
-        app.start()
-            .loginAs("standard_user")
-            .run {
-                resetApp()
-                addProductToCartByIndex(1)
-                addProductToCartByIndex(3)
-                val overview = openCheckout()
-                    .fillInfo("Alice", "Johnson", "54321")
-                val items = overview.getOverviewItems()
-                assertEquals(2, items.size)
+        app.inventory()
+            .resetApp()
+            .addProductToCartByIndex(1)
+            .addProductToCartByIndex(3)
+            .startCheckout()
+            .setCheckoutInfo(CheckoutInfo(firstName = "Alice", lastName = "Johnson", zipCode = "54321"))
+            .checkOverviewItems { items ->
+                assertThat(items).hasSize(2)
             }
     }
 
     @Test
     fun `can go back from checkout overview to products`() {
-        app.start()
-            .loginAs("standard_user")
-            .run {
-                resetApp()
-                addProductToCartByIndex(0)
-                val overview = openCheckout()
-                    .fillInfo("Bob", "Brown", "11111")
-                val inventory = overview.backToProducts()
-                inventory.page.waitForLoadState()
+        app.inventory()
+            .resetApp()
+            .addProductToCartByIndex(0)
+            .startCheckout()
+            .setCheckoutInfo(CheckoutInfo(firstName = "Bob", lastName = "Brown", zipCode = "11111"))
+            .cancelCheckout()
+            .checkProducts { products ->
+                assertThat(products).isNotEmpty
             }
     }
 
     @Test
     fun `can checkout from cart page`() {
-        app.start()
-            .loginAs("standard_user")
-            .run {
-                resetApp()
-                addProductToCartByIndex(2)
-                val cart = openCart()
-                assertEquals(1, cart.getCartItems().size)
-                val overview = cart.continueToCheckout()
-                    .fillInfo("Carol", "White", "67890")
-                overview.finish()
+        app.inventory()
+            .resetApp()
+            .addProductToCartByIndex(2)
+            .goToCart()
+            .checkCartItems { items ->
+                assertThat(items).hasSize(1)
             }
+            .startCheckout()
+            .setCheckoutInfo(CheckoutInfo(firstName = "Carol", lastName = "White", zipCode = "67890"))
+            .finishCheckout()
+            .assertOrderComplete()
     }
 
     @Test
     fun `cart total matches overview total`() {
-        app.start()
-            .loginAs("standard_user")
-            .run {
-                resetApp()
-                addProductToCartByIndex(0)
-                addProductToCartByIndex(4)
-                val cart = openCart()
-                val cartTotal = cart.getCartItems().sumOf { it.price.replace("[^0-9.]".toRegex(), "").toDouble() }
-                val overview = cart.continueToCheckout()
-                    .fillInfo("Dave", "Wilson", "33333")
-                val overviewTotal = overview.getTotal().replace("[^0-9.]".toRegex(), "").toDouble()
-                assertEquals(String.format("%.2f", cartTotal), String.format("%.2f", overviewTotal))
+        var cartTotal = 0.0
+
+        app.inventory()
+            .resetApp()
+            .addProductToCartByIndex(0)
+            .addProductToCartByIndex(4)
+            .goToCart()
+            .checkCartItems { items ->
+                cartTotal = items.sumOf { it.price.replace("[^0-9.]".toRegex(), "").toDouble() }
+            }
+            .startCheckout()
+            .setCheckoutInfo(CheckoutInfo(firstName = "Dave", lastName = "Wilson", zipCode = "33333"))
+            .checkTotal { total ->
+                val overviewTotal = total.replace("[^0-9.]".toRegex(), "").toDouble()
+                assertThat(String.format("%.2f", cartTotal)).isEqualTo(String.format("%.2f", overviewTotal))
             }
     }
 }

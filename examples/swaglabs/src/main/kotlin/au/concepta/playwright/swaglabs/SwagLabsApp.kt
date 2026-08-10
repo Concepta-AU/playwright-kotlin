@@ -16,4 +16,13 @@ class SwagLabsApp : Application<LoginPage>() {
 
     override fun getInitialApplicationPage(page: Page): LoginPage =
         LoginPage(page, page.getByRole(AriaRole.TEXTBOX, name = "Username"))
+
+    fun loginIfNeeded(username: String = "standard_user"): InventoryPage =
+        start().loginAs(username)
+
+    fun inventory(username: String = "standard_user"): InventoryPage =
+        loginIfNeeded(username)
+
+    fun cart(username: String = "standard_user"): CartPage =
+        loginIfNeeded(username).goToCart()
 }

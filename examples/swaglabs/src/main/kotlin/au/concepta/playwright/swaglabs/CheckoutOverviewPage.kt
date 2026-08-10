@@ -2,13 +2,12 @@ package au.concepta.playwright.swaglabs
 
 import com.microsoft.playwright.Locator
 import com.microsoft.playwright.Page
-import au.concepta.playwright.ApplicationPage
 import au.concepta.playwright.util.*
 
 class CheckoutOverviewPage(
     page: Page,
     pageElement: Locator
-) : ApplicationPage<CheckoutOverviewPage>(page, pageElement) {
+) : SwagLabsPage<CheckoutOverviewPage>(page, pageElement) {
 
     data class OverviewItem(val name: String, val price: String)
 
@@ -25,17 +24,31 @@ class CheckoutOverviewPage(
         return items
     }
 
+    fun checkOverviewItems(block: (List<OverviewItem>) -> Unit): CheckoutOverviewPage {
+        block(getOverviewItems())
+        return downcast()
+    }
+
     fun getTotal(): String {
         return page.locator("[data-test='subtotal-label']").textContent()?.trim()?.removePrefix("Item total: ") ?: ""
     }
 
-    fun finish(): CheckoutCompletePage {
+    fun checkTotal(block: (String) -> Unit): CheckoutOverviewPage {
+        block(getTotal())
+        return downcast()
+    }
+
+    fun finishCheckout(): CheckoutCompletePage {
         page.locator("[data-test='finish']").click()
         return CheckoutCompletePage(page, page.locator("[data-test='title']"))
     }
 
-    fun backToProducts(): InventoryPage {
+    fun finish(): CheckoutCompletePage = finishCheckout()
+
+    fun cancelCheckout(): InventoryPage {
         page.locator("[data-test='cancel']").click()
         return InventoryPage(page, page.locator("[data-test='title']"))
     }
+
+    fun backToProducts(): InventoryPage = cancelCheckout()
 }

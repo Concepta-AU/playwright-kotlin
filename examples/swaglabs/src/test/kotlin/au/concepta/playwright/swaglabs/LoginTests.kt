@@ -2,7 +2,6 @@ package au.concepta.playwright.swaglabs
 
 import au.concepta.playwright.TestBase
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 
@@ -21,26 +20,23 @@ class LoginTests : TestBase<SwagLabsApp>() {
 
     @Test
     fun `error shown for locked out user`() {
-        val loginPage = app.start()
+        app.start()
             .loginAsWithError("locked_out_user")
-        val error = loginPage.getErrorMessage()
-        assertTrue(error?.contains("Epic sadface") == true)
+            .assertErrorMessageContains("Epic sadface")
     }
 
     @Test
     fun `error shown for invalid credentials`() {
-        val loginPage = app.start()
+        app.start()
             .loginWithInvalidCredentials()
-        val error = loginPage.getErrorMessage()
-        assertTrue(error?.contains("Epic sadface") == true)
+            .assertErrorMessageContains("Epic sadface")
     }
 
     @Test
     fun `error message text is correct for locked out user`() {
-        val loginPage = app.start()
+        app.start()
             .loginAsWithError("locked_out_user")
-        val error = loginPage.getErrorMessage()
-        assertTrue(error?.contains("locked out") == true)
+            .assertErrorMessageContains("locked out")
     }
 
     @ParameterizedTest
