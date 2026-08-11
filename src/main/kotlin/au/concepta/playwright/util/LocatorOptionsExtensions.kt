@@ -342,6 +342,28 @@ fun Locator.screenshot(
     return screenshot(opts)
 }
 
+fun Locator.filter(
+    has: Locator? = null,
+    hasNot: Locator? = null,
+    hasText: String? = null,
+    hasTextPattern: Pattern? = null,
+    hasTextRegex: Regex? = null,
+    hasNotText: String? = null,
+    hasNotTextPattern: Pattern? = null,
+    hasNotTextRegex: Regex? = null,
+): Locator {
+    val opts = Locator.FilterOptions()
+    if (has != null) opts.setHas(has)
+    if (hasNot != null) opts.setHasNot(hasNot)
+    if (hasText != null) opts.setHasText(hasText)
+    if (hasTextPattern != null) opts.setHasText(hasTextPattern)
+    if (hasTextRegex != null) opts.setHasText(hasTextRegex.toPattern())
+    if (hasNotText != null) opts.setHasNotText(hasNotText)
+    if (hasNotTextPattern != null) opts.setHasNotText(hasNotTextPattern)
+    if (hasNotTextRegex != null) opts.setHasNotText(hasNotTextRegex.toPattern())
+    return filter(opts)
+}
+
 fun Locator.dragTo(
     target: Locator,
     force: Boolean? = null,
