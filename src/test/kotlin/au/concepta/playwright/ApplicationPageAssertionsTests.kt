@@ -6,7 +6,7 @@ import kotlin.test.Test
 import kotlin.test.assertFailsWith
 
 /**
- * A page with a target element that becomes hidden [delayMillis] after `#hide` is clicked, rather than
+ * A page with a target element that becomes hidden [VisibilityTestApp.delayMillis] after `#hide` is clicked, rather than
  * immediately -- so tests here can tell an assertion that samples visibility once from one that actually
  * waits for it.
  */
@@ -44,6 +44,68 @@ class DuplicateTargetApp : Application<VisibilityTestPage>() {
                 "</body></html>"
 
     override fun getInitialApplicationPage(page: Page): VisibilityTestPage = VisibilityTestPage(page)
+}
+
+/**
+ * A page whose class, focus, count, attribute, and checked state all only settle a delay after `go` is clicked,
+ * rather than immediately -- so the tests below can tell an assertion that samples once from one that actually waits.
+ */
+class DelayedStatePage(page: Page) : ApplicationPage<DelayedStatePage>(page, page.locator("body")) {
+    fun triggerDelayedUpdate(): DelayedStatePage {
+        page.locator("#go").click()
+        return downcast()
+    }
+
+    fun assertHasClass(cls: String) = assertElementHasClass(page.locator("#target"), cls, "target")
+
+    fun assertDoesNotHaveClass(cls: String) = assertElementDoesNotHaveClass(page.locator("#target"), cls, "target")
+
+    fun assertFocused() = assertElementFocused(page.locator("#input"), "input")
+
+    fun assertCount(count: Int) = assertElementCount(page.locator(".item"), count, "items")
+
+    fun assertAttr(name: String, value: String) = assertAttribute(page.locator("#target"), name, value, "target")
+
+    fun assertChecked() = assertElementChecked(page.locator("#check"), "checkbox")
+}
+
+class DelayedStateApp : Application<DelayedStatePage>() {
+    private val delayMillis = 300
+
+    override val defaultBaseUrl: String =
+        "data:text/html,<html><body>" +
+                "<div id='target' class='initial'>box</div>" +
+                "<input id='input'/>" +
+                "<div class='item'>one</div>" +
+                "<input id='check' type='checkbox'/>" +
+                "<button id='go'>go</button>" +
+                "<script>document.getElementById('go').addEventListener('click', () => setTimeout(() => {" +
+                "var t = document.getElementById('target');" +
+                "t.classList.remove('initial');" +
+                "t.classList.add('active');" +
+                "t.setAttribute('data-state', 'ready');" +
+                "document.getElementById('input').focus();" +
+                "var d = document.createElement('div');" +
+                "d.className = 'item';" +
+                "d.textContent = 'two';" +
+                "document.body.appendChild(d);" +
+                "document.getElementById('check').checked = true;" +
+                "}, $delayMillis))</script>" +
+                "</body></html>"
+
+    override fun getInitialApplicationPage(page: Page): DelayedStatePage = DelayedStatePage(page)
+}
+
+/**
+ * Runs [block] against a freshly started [DelayedStateApp], always closing it again.
+ */
+private fun withDelayedState(block: (DelayedStatePage) -> Unit) {
+    val app = DelayedStateApp()
+    try {
+        block(app.start())
+    } finally {
+        app.close()
+    }
 }
 
 /**
@@ -189,5 +251,81 @@ class ApplicationPageAssertionsTests {
         page.triggerDelayedUpdate().assertHasChoice("alpha")
         val error = assertFailsWith<AssertionError> { page.assertDoesNotHaveChoice("alpha") }
         assertThat(error.message).contains("alpha").contains("but it has")
+    }
+
+    // --- class assertions ---
+
+    @Test
+    fun `assertElementHasClass waits for the class to appear`() = withDelayedState { page ->
+        page.triggerDelayedUpdate().assertHasClass("active")
+    }
+
+    @Test
+    fun `assertElementHasClass fails when the class is absent`() = withDelayedState { page ->
+        val error = assertFailsWith<AssertionError> { page.assertHasClass("missing") }
+        assertThat(error.message).contains("missing").contains("does not")
+    }
+
+    @Test
+    fun `assertElementDoesNotHaveClass waits for the class to disappear`() = withDelayedState { page ->
+        page.triggerDelayedUpdate().assertDoesNotHaveClass("initial")
+    }
+
+    @Test
+    fun `assertElementDoesNotHaveClass fails when the class is present`() = withDelayedState { page ->
+        val error = assertFailsWith<AssertionError> { page.assertDoesNotHaveClass("initial") }
+        assertThat(error.message).contains("initial").contains("but it does")
+    }
+
+    // --- focus assertion ---
+
+    @Test
+    fun `assertElementFocused waits for the element to receive focus`() = withDelayedState { page ->
+        page.triggerDelayedUpdate().assertFocused()
+    }
+
+    @Test
+    fun `assertElementFocused fails when the element is not focused`() = withDelayedState { page ->
+        val error = assertFailsWith<AssertionError> { page.assertFocused() }
+        assertThat(error.message).contains("input").contains("not")
+    }
+
+    // --- count assertion ---
+
+    @Test
+    fun `assertElementCount waits for the count to stabilize`() = withDelayedState { page ->
+        page.triggerDelayedUpdate().assertCount(2)
+    }
+
+    @Test
+    fun `assertElementCount fails when the count does not match`() = withDelayedState { page ->
+        val error = assertFailsWith<AssertionError> { page.assertCount(5) }
+        assertThat(error.message).contains("5").contains("1")
+    }
+
+    // --- attribute assertion ---
+
+    @Test
+    fun `assertAttribute waits for the attribute to appear`() = withDelayedState { page ->
+        page.triggerDelayedUpdate().assertAttr("data-state", "ready")
+    }
+
+    @Test
+    fun `assertAttribute fails when the attribute does not match`() = withDelayedState { page ->
+        val error = assertFailsWith<AssertionError> { page.assertAttr("data-state", "wrong") }
+        assertThat(error.message).contains("data-state").contains("wrong")
+    }
+
+    // --- checked assertion ---
+
+    @Test
+    fun `assertElementChecked waits for the element to become checked`() = withDelayedState { page ->
+        page.triggerDelayedUpdate().assertChecked()
+    }
+
+    @Test
+    fun `assertElementChecked fails when the element is not checked`() = withDelayedState { page ->
+        val error = assertFailsWith<AssertionError> { page.assertChecked() }
+        assertThat(error.message).contains("checkbox").contains("not")
     }
 }

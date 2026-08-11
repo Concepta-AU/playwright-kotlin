@@ -1,4 +1,4 @@
-@file:Suppress("unused", "MemberVisibilityCanBePrivate")
+@file:Suppress("unused", "MemberVisibilityCanBePrivate", "SameParameterValue")
 
 package au.concepta.playwright
 
@@ -222,6 +222,86 @@ abstract class ApplicationPage<T : ApplicationPage<T>>(val page: Page, elementTo
             if (optionLabels(selectId).contains(value)) {
                 throw AssertionError("Expected $selectId to not have option '$value', but it has")
             }
+        }
+    }
+
+    /**
+     * Assert that the given element has the expected CSS class.
+     *
+     * Uses Playwright's auto-retrying assertion so it waits for the class to appear.
+     */
+    protected fun assertElementHasClass(element: Locator, expectedClass: String, name: String) {
+        try {
+            assertThat(element).hasClass(expectedClass)
+        } catch (e: AssertionFailedError) {
+            throw AssertionError("Expected $name to have class '$expectedClass', but it does not", e)
+        }
+    }
+
+    /**
+     * Assert that the given element does not have the specified CSS class.
+     *
+     * Uses Playwright's auto-retrying assertion so it waits for the class to disappear.
+     */
+    protected fun assertElementDoesNotHaveClass(element: Locator, unexpectedClass: String, name: String) {
+        try {
+            assertThat(element).not().hasClass(unexpectedClass)
+        } catch (e: AssertionFailedError) {
+            throw AssertionError("Expected $name to not have class '$unexpectedClass', but it does", e)
+        }
+    }
+
+    /**
+     * Assert that the given element is focused.
+     *
+     * Uses Playwright's auto-retrying assertion so it waits for the element to receive focus.
+     */
+    protected fun assertElementFocused(element: Locator, name: String) {
+        try {
+            assertThat(element).isFocused()
+        } catch (e: AssertionFailedError) {
+            throw AssertionError("Expected $name to be focused, but it is not", e)
+        }
+    }
+
+    /**
+     * Assert that the locator matches the expected number of elements.
+     *
+     * Uses Playwright's auto-retrying assertion so it waits for the count to stabilize.
+     */
+    protected fun assertElementCount(element: Locator, expectedCount: Int, name: String) {
+        try {
+            assertThat(element).hasCount(expectedCount)
+        } catch (e: AssertionFailedError) {
+            val actual = element.count()
+            throw AssertionError("Expected $name to have count $expectedCount, but found $actual", e)
+        }
+    }
+
+    /**
+     * Assert that the given element has the expected attribute value.
+     *
+     * Uses Playwright's auto-retrying assertion so it waits for the attribute to appear.
+     */
+    protected fun assertAttribute(element: Locator, attributeName: String, expectedValue: String, name: String) {
+        try {
+            assertThat(element).hasAttribute(attributeName, expectedValue)
+        } catch (e: AssertionFailedError) {
+            val actual = element.getAttribute(attributeName)
+            throw AssertionError("Expected $name to have attribute '$attributeName'='$expectedValue', but got '$actual'", e)
+        }
+    }
+
+    /**
+     * Assert that the given checkbox or radio element is checked.
+     *
+     * Uses Playwright's auto-retrying assertion so it waits for the element to become checked.
+     */
+    protected fun assertElementChecked(element: Locator, name: String) {
+        try {
+            assertThat(element).isChecked()
+        } catch (e: AssertionFailedError) {
+            throw AssertionError("Expected $name to be checked, but it is not", e)
         }
     }
 
