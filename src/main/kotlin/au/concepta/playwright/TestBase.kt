@@ -4,6 +4,7 @@ package au.concepta.playwright
 
 import com.microsoft.playwright.ConsoleMessage
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.extension.AfterEachCallback
 import org.junit.jupiter.api.extension.AfterTestExecutionCallback
 import org.junit.jupiter.api.extension.ExtensionContext
 import org.junit.jupiter.api.extension.RegisterExtension
@@ -95,21 +96,42 @@ open class TestBase<T: Application<*>> {
 }
 
 /**
- * JUnit 5 extension that closes browser contexts and writes traces after each test execution.
+ * JUnit 5 extension that closes browser contexts and writes traces after each test.
  *
  * Only closes contexts for applications where [Application.testRunning] is `true`.
  * Traces are written to disk for failed tests or all tests when `SAVE_ALL_TRACES` is set.
+ *
+ * Both callbacks are implemented because they cover different failures. [afterTestExecution] runs only
+ * when the test method actually executed, so a test whose set-up threw - a `@BeforeEach`, or a lifecycle
+ * callback - never reaches it, and would otherwise leave no trace and an unclosed context. [afterEach]
+ * runs in that case too, and writes a trace for anything still running when it does.
+ *
+ * A failure before the test body is the one a log can least explain on its own, so it is the one that
+ * most needs its trace. Note the remaining gap: an exception thrown while *constructing* the test
+ * instance leaves no instance for JUnit to register instance extensions on, so nothing here can run.
+ * Set-up that can fail belongs in `@BeforeEach`, not in a constructor or field initialiser.
  */
-class AppShutdown(private val apps: Map<String, Application<*>>): AfterTestExecutionCallback {
+class AppShutdown(private val apps: Map<String, Application<*>>): AfterTestExecutionCallback, AfterEachCallback {
     /**
      * Called by JUnit 5 after each test method execution.
      *
      * Stops tracing, writes trace files for applicable tests, and closes all browser contexts.
      */
-    override fun afterTestExecution(context: ExtensionContext) {
+    override fun afterTestExecution(context: ExtensionContext) =
+        shutDown(context, saveAllTraces || context.executionException.isPresent)
+
+    /**
+     * Called by JUnit 5 after each test, including tests whose method never ran because set-up failed.
+     *
+     * Anything still running at this point belongs to such a test - a completed one was already stopped by
+     * [afterTestExecution] - so its trace is always worth keeping.
+     */
+    override fun afterEach(context: ExtensionContext) = shutDown(context, writeTraces = true)
+
+    private fun shutDown(context: ExtensionContext, writeTraces: Boolean) {
         try {
             val runningApps = apps.filter { it.value.testRunning }
-            if(saveAllTraces || context.executionException.isPresent) {
+            if(writeTraces) {
                 runningApps.forEach { (id, app) ->
                     val suffix = when (runningApps.size) {
                         1 -> ""
