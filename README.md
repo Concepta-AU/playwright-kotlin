@@ -15,6 +15,7 @@ Documentation
 |---|---|
 | [Getting Started](docs/getting-started.md) | Dependency setup, the Application / ApplicationPage / TestBase pattern, and extension functions |
 | [Running Tests](docs/running-tests.md) | Test execution, environment variables, traces, and accessibility checks |
+| [Soak Testing](docs/soak-testing.md) | Repeating a flow in one browser context to find retained DOM nodes, listeners and documents |
 
 Find the latest version on [Maven Central](https://central.sonatype.com/artifact/au.concepta/playwright-kotlin).
 
@@ -28,6 +29,8 @@ The functionality added by this project includes:
  * manage creation of trace files and video recordings
  * automatically check for console and page errors when running tests, while tolerating (and reporting) transient
    transport errors, so a network hiccup does not fail an unrelated test
+ * measure what a repeated flow retains in the browser, so a single-page application's memory leaks can be caught
+   by a test instead of by a user who kept a tab open all day
  * document usage patterns that have proven successful in practice
  * provide a set of extension functions to make the Playwright API more concise
 

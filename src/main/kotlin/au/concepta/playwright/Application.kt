@@ -99,6 +99,19 @@ abstract class Application<T: ApplicationPage<T>>: AutoCloseable {
     protected open val tolerateTransientErrors: Boolean = true
 
     /**
+     * Whether a test run records a Playwright trace.
+     *
+     * On by default, and the right answer for an ordinary test: the trace is what explains a failure afterwards.
+     * Turn it off for a test that repeats one flow hundreds of times - a soak test (see [soak]). Tracing snapshots
+     * the DOM on every action, which both bloats the trace to little purpose and does in-page work of its own,
+     * skewing the very counters such a test asserts on.
+     *
+     * Turn it back on in a subclass, or for a single run, to diagnose a soak failure; `SAVE_ALL_TRACES` still
+     * decides whether a passing test's trace is kept.
+     */
+    protected open val recordTracing: Boolean = true
+
+    /**
      * Override the logic how a base URL is determined. Usually it is sufficient to just set the [defaultBaseUrl], but
      * replacing the implementation here can be used if calculations are needed.
      */
@@ -126,11 +139,15 @@ abstract class Application<T: ApplicationPage<T>>: AutoCloseable {
     private fun startTest() {
         context = createContext()
         context.setDefaultTimeout(10_000.0)
-        context.tracing().start(
-            Tracing.StartOptions()
-                .setScreenshots(true)
-                .setSnapshots(true)
-        )
+        if (recordTracing) {
+            context.tracing().start(
+                Tracing.StartOptions()
+                    .setScreenshots(true)
+                    .setSnapshots(true)
+            )
+        }
+        // the previous test's probe belongs to a context that has since been closed
+        memoryProbe = null
         testRunning = true
     }
 
@@ -188,7 +205,7 @@ abstract class Application<T: ApplicationPage<T>>: AutoCloseable {
 
     private fun getBrowserPage(): Page  = if (!testRunning) {
         startTest()
-        context.tracing().group("Set up")
+        if (recordTracing) context.tracing().group("Set up")
         try {
             val new = context.newPage()
             configureNewPage(new)
@@ -206,7 +223,7 @@ abstract class Application<T: ApplicationPage<T>>: AutoCloseable {
             new.navigate(baseUrl)
             new
         } finally {
-            context.tracing().groupEnd()
+            if (recordTracing) context.tracing().groupEnd()
         }
     } else {
         context.pages().first()
@@ -229,18 +246,81 @@ abstract class Application<T: ApplicationPage<T>>: AutoCloseable {
     fun stopTest(vararg hierarchicalName: String) {
         if (!testRunning) return
         testRunning = false
+        memoryProbe = null
         try {
-            if (hierarchicalName.isEmpty()) {
-                context.tracing().stop()
-            } else {
-                val folders = hierarchicalName.dropLast(1)
-                val file = hierarchicalName.last()
-                val traceLoc = folders.fold(Path.of("traces")) { acc, cur -> acc.resolve(cur) }.resolve("$file.zip")
-                context.tracing().stop(Tracing.StopOptions().setPath(traceLoc))
+            // nothing to stop or write when the test was not recording - see recordTracing
+            if (recordTracing) {
+                if (hierarchicalName.isEmpty()) {
+                    context.tracing().stop()
+                } else {
+                    val folders = hierarchicalName.dropLast(1)
+                    val file = hierarchicalName.last()
+                    val traceLoc = folders.fold(Path.of("traces")) { acc, cur -> acc.resolve(cur) }.resolve("$file.zip")
+                    context.tracing().stop(Tracing.StopOptions().setPath(traceLoc))
+                }
             }
         } finally {
             context.close()
         }
+    }
+
+    private var memoryProbe: MemoryProbe? = null
+
+    /**
+     * Reads the browser's retained footprint - DOM nodes, event listeners, documents and heap size - after
+     * settling garbage collection.
+     *
+     * Needs a running test: the reading is taken on the page [start] opened. Chromium only, since the measurement
+     * goes over the Chrome DevTools Protocol.
+     */
+    fun measureMemory(): MemoryMetrics {
+        check(testRunning) { "Memory can only be measured while a test is running - call start() first." }
+        val probe =
+            memoryProbe ?: MemoryProbe(context.pages().first(), browser.browserType().name()).also {
+                memoryProbe = it
+            }
+        return probe.measure()
+    }
+
+    /**
+     * Runs [flow] repeatedly in the current browser context - never reloading - and measures what it retains.
+     *
+     * A single-page application is never reloaded after login, so anything a flow forgets to release accumulates
+     * for the whole working session. An ordinary test cannot see that: it runs in a fresh context and lives for
+     * seconds. Repeating one flow in one context and comparing counters across it can, provided two things:
+     *
+     *  - the flow loops over the *same* data, so growth that is simply the application caching what it was asked
+     *    for is not read as a leak;
+     *  - the baseline is taken after [warmup] iterations, because the first few legitimately allocate - root
+     *    services, lazily created singletons, first-render DOM.
+     *
+     * Judge the result with [assertNoLeak], which prints the trend so a one-off step is distinguishable from a
+     * straight line. Consider turning [recordTracing] off for the test: hundreds of traced actions cost a large
+     * trace and perturb the measurement.
+     *
+     * @param iterations runs of [flow] after the warm-up.
+     * @param warmup runs of [flow] before the baseline reading.
+     * @param checkpointEvery how often, in iterations, to take an intermediate reading.
+     */
+    fun soak(
+        iterations: Int = 100,
+        warmup: Int = 5,
+        checkpointEvery: Int = 10,
+        flow: () -> Unit,
+    ): SoakResult {
+        require(iterations > 0) { "A soak run needs at least one iteration, not $iterations" }
+        require(warmup >= 0) { "The warm-up cannot be negative, but was $warmup" }
+        require(checkpointEvery > 0) { "Checkpoints cannot be taken every $checkpointEvery iterations" }
+        repeat(warmup) { flow() }
+        val baseline = measureMemory()
+        val checkpoints = mutableListOf<SoakCheckpoint>()
+        for (iteration in 1..iterations) {
+            flow()
+            if (iteration % checkpointEvery == 0 && iteration < iterations) {
+                checkpoints += SoakCheckpoint(iteration, measureMemory())
+            }
+        }
+        return SoakResult(warmup, iterations, baseline, checkpoints, measureMemory())
     }
 
     /**
