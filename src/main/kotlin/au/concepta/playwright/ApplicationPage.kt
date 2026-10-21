@@ -319,12 +319,12 @@ abstract class ApplicationPage<T : ApplicationPage<T>>(val page: Page, elementTo
 
     private fun selectedOptionLabel(selectId: String): String {
         val option = page.locator("#$selectId > option:checked")
-        return option.getAttribute("label")?.takeIf { it.isNotEmpty() } ?: option.textContent().trim()
+        return option.getAttribute("label")?.takeIf { it.isNotEmpty() } ?: option.textContent().orEmpty().trim()
     }
 
     private fun optionLabels(selectId: String): List<String> =
         page.locator("#$selectId > option").all().map { option ->
-            option.textContent().trim().ifEmpty { option.getAttribute("label") ?: "" }
+            option.textContent().orEmpty().trim().ifEmpty { option.getAttribute("label") ?: "" }
         }
 
     private fun waitForSelectToBeLoaded(selectId: String) {

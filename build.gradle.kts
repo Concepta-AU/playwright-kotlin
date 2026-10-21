@@ -8,22 +8,22 @@ repositories {
 }
 
 plugins {
-    kotlin("jvm") version "2.4.10"
+    kotlin("jvm") version "2.4.21"
     `java-library`
     `maven-publish`
     signing
     id("com.vanniktech.maven.publish") version "0.37.0"
     id("org.jetbrains.dokka") version "2.2.0"
-    id("io.github.ben-manes.versions") version "0.56.0"
+    id("io.github.ben-manes.versions") version "0.66.0"
 }
 
 group = "au.concepta"
 
-val junitVersion = "5.14.0"
+val junitVersion = "5.14.4"
 
 dependencies {
-    api("com.microsoft.playwright:playwright:1.61.0")
-    api("com.deque.html.axe-core:playwright:4.12.0")
+    api("com.microsoft.playwright:playwright:1.63.0")
+    api("com.deque.html.axe-core:playwright:4.14.0")
 
     // We use these as `api` as our main code is a testing framework itself
     api(kotlin("test"))
@@ -53,8 +53,8 @@ fun isPrerelease(candidate: ModuleComponentIdentifier): Boolean {
 tasks.withType<DependencyUpdatesTask> {
     rejectVersionIf {
         isPrerelease(candidate) ||
-                // not doing jUnit 6 just yet
-                candidate.group == "org.junit.jupiter" || candidate.version.startsWith("6.0")
+                // not doing JUnit 6 just yet
+                candidate.group == "org.junit.jupiter" && candidate.version.startsWith("6.")
     }
 }
 
