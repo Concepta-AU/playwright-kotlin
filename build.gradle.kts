@@ -22,7 +22,7 @@ group = "au.concepta"
 val junitVersion = "5.14.4"
 
 dependencies {
-    api("com.microsoft.playwright:playwright:1.63.0")
+    api("com.microsoft.playwright:playwright:1.64.0")
     api("com.deque.html.axe-core:playwright:4.14.0")
 
     // We use these as `api` as our main code is a testing framework itself

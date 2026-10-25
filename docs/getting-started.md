@@ -32,6 +32,10 @@ dependencies {
 </dependency>
 ```
 
+If you have other Playwright dependencies such as the Java library or Docker images, make sure you use the
+exact same version as the Playwright dependency in this project. Unfortunately, Playwright has a history of
+both source and binary incompatible releases on minor versions.
+
 Define an Application
 ---------------------
 
