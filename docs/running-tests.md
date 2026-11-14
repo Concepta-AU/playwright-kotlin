@@ -28,6 +28,16 @@ Environment Variables
 | `VIEW_SPEED` | If set, runs the browser in headed mode with slow-motion (value in ms). If unset, runs headless with no delay | headless, no delay |
 | `VIDEO_DIR` | If set, records a video to this directory for each browser context | no recording |
 | `SAVE_ALL_TRACES` | If `"true"`, saves a Playwright trace (`.zip`) for every test. Otherwise, traces are saved only when a test fails | only on failure |
+| `TEST_ID_STRATEGY` | Strategy for generating `TestBase.testId`: `COMPACT`, `SHORT`, or `FULL` | `COMPACT` |
+
+### Test Identification and Data Isolation
+
+`TestBase` generates unique identifiers to separate test data across concurrent threads and processes. The generation
+strategy can be selected via `TEST_ID_STRATEGY` or by overriding `testIdStrategy` in your `TestBase` subclass:
+
+- `COMPACT` (default): Combines a 2-character startup salt, the JVM process ID in Base36, and an atomic sequence counter in Base36 (~6–8 characters, e.g., `4kvt31`). Strictly alphanumeric (`[0-9a-z]`), case-insensitive safe, and unique across both threads and multiple worker processes.
+- `SHORT`: A process-local atomic counter in Base36 (1–4 characters, e.g., `1`, `2`, `a`). Minimal length, but not safe across multiple processes.
+- `FULL`: A 128-bit UUID encoded in Base36 (~25 characters). Globally unique across machines and runs.
 
 ### Trace Files
 

@@ -3,6 +3,7 @@
 package au.concepta.playwright
 
 import com.microsoft.playwright.ConsoleMessage
+import java.util.concurrent.atomic.AtomicInteger
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.extension.AfterEachCallback
 import org.junit.jupiter.api.extension.AfterTestExecutionCallback
@@ -17,6 +18,14 @@ import org.junit.jupiter.api.extension.RegisterExtension
 val saveAllTraces: Boolean = "true" == System.getenv("SAVE_ALL_TRACES")
 
 /**
+ * Default strategy for generating test IDs, resolved from the `TEST_ID_STRATEGY` environment variable.
+ */
+val defaultTestIdStrategy: TestIdGenerator.Strategy =
+    System.getenv("TEST_ID_STRATEGY")?.let { raw ->
+        runCatching { TestIdGenerator.Strategy.valueOf(raw.uppercase()) }.getOrNull()
+    } ?: TestIdGenerator.Strategy.COMPACT
+
+/**
  * Base class for test fixtures that manage application instances and browser lifecycle.
  *
  * Subclasses register their application instances via [registerApplication]. A [TestBase]
@@ -25,6 +34,61 @@ val saveAllTraces: Boolean = "true" == System.getenv("SAVE_ALL_TRACES")
  */
 open class TestBase<T: Application<*>> {
     private val applications: MutableMap<String, T> = mutableMapOf()
+
+    /**
+     * Strategy used to generate [testId].
+     *
+     * Defaults to the value of the `TEST_ID_STRATEGY` environment variable (if set and valid),
+     * or [TestIdGenerator.Strategy.COMPACT]. Subclasses can override this property.
+     */
+    protected open val testIdStrategy: TestIdGenerator.Strategy = defaultTestIdStrategy
+
+    private var _testId: String? = null
+    private val subIdCounter = AtomicInteger(0)
+
+    /**
+     * Unique identifier for this test execution.
+     *
+     * Generated on first access using [testIdStrategy]. Subsequent accesses within the same test
+     * method return the same identifier. Automatically reset after each test.
+     */
+    val testId: String
+        get() = _testId ?: TestIdGenerator.nextId(testIdStrategy).also { _testId = it }
+
+    /**
+     * Generate a unique string prefixed with [prefix] for test data naming.
+     *
+     * If [tag] is provided, it is incorporated into the ID to create distinct values for different
+     * entities within the same test.
+     *
+     * Examples:
+     * - `uniqueName("user")` -> `"user-4kvt31"`
+     * - `uniqueName("user", "buyer")` -> `"user-4kvt31-buyer"`
+     * - `uniqueName()` -> `"4kvt31"`
+     *
+     * @param prefix Optional prefix for the generated name.
+     * @param tag Optional tag to identify a specific entity within the test.
+     * @return A formatted unique name.
+     */
+    fun uniqueName(prefix: String = "", tag: String? = null): String {
+        val base = if (tag != null) uniqueSubId(tag) else testId
+        return if (prefix.isEmpty()) base else "$prefix-$base"
+    }
+
+    /**
+     * Generate an additional unique identifier scoped to this test.
+     *
+     * Useful when a single test creates multiple distinct records or entities of the same type.
+     *
+     * Examples:
+     * - `uniqueSubId("buyer")` -> `"4kvt31-buyer"`
+     * - `uniqueSubId()` -> `"4kvt31-1"`, `"4kvt31-2"`
+     *
+     * @param tag Optional tag to identify the entity. If null, a sequential sub-counter is used.
+     * @return A unique sub-identifier scoped to [testId].
+     */
+    fun uniqueSubId(tag: String? = null): String =
+        if (tag != null) "$testId-$tag" else "$testId-${subIdCounter.incrementAndGet().toString(36)}"
 
     /**
      * The default application identifier used by [registerApplication] and [getApplication]
@@ -89,6 +153,15 @@ open class TestBase<T: Application<*>> {
                 println()
             }
         }
+    }
+
+    /**
+     * Reset the test identifier and sub-identifier counter after each test.
+     */
+    @AfterEach
+    fun resetTestId() {
+        _testId = null
+        subIdCounter.set(0)
     }
 
     private fun consoleLine(message: ConsoleMessage) =

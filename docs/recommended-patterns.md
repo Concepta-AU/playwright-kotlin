@@ -197,8 +197,18 @@ this is to generate unique IDs and keys in each test, and also to make sure anyt
 using such an identifier.
 
 For example, do not create a customer "John Doe", then search for that name in the list of customers as this risks
-interactions between tests. Create the customer as `John Doe ${testId}`, where the `testId` is a unique identifier
-generated in the individual test.
+interactions between tests. Create the customer using `uniqueName()`:
+
+```kotlin
+val customerName = uniqueName("John Doe") // e.g., "John Doe-4kvt31"
+```
+
+`TestBase` provides:
+- `testId`: A base identifier unique to the test execution. By default, it uses the `COMPACT` strategy, which combines a run salt, PID, and an atomic counter in Base36 (~6–8 lowercase alphanumeric characters). This is safe across multiple threads and multiple JVM processes (e.g. Gradle parallel workers).
+- `uniqueName(prefix, tag)`: Prepends a prefix and optional tag (e.g. `uniqueName("user", "buyer")` -> `"user-4kvt31-buyer"`).
+- `uniqueSubId(tag)`: Generates additional unique IDs scoped to the test when creating multiple distinct records of the same type (e.g. `uniqueSubId("buyer")` -> `"4kvt31-buyer"`, `uniqueSubId()` -> `"4kvt31-1"`).
+
+Standalone ID generation is also available outside `TestBase` via `TestIdGenerator.nextId()`. See [Running Tests](running-tests.md#test-identification-and-data-isolation) for available generation strategies.
 
 
 Use Utility Methods for Component Access

@@ -33,6 +33,7 @@ The functionality added by this project includes:
    by a test instead of by a user who kept a tab open all day
  * document usage patterns that have proven successful in practice
  * provide a set of extension functions to make the Playwright API more concise
+ * generate compact, multi-process safe unique identifiers for isolating test data in concurrent test runs
 
 Why Kotlin
 ----------

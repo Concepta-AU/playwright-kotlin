@@ -106,6 +106,40 @@ implies that the page level locator of the dashboard page was found. As long as 
 do no longer need to constantly assert elements just to confirm a page opened.
 
 
+Generate Unique Test Data
+-------------------------
+
+Tests running against a shared environment or in parallel across processes need to isolate their data.
+`TestBase` provides `testId` and helper methods to create compact, unique identifiers:
+
+```kotlin
+class RegistrationTest : TestBase<MyApp>() {
+
+    private val app = getApplication()
+
+    @Test
+    fun `user can register with unique credentials`() {
+        val username = uniqueName("user") // e.g., "user-4kvt31"
+        val email = "$username@example.com"
+
+        app.start()
+            .register(username, email)
+    }
+}
+```
+
+If a single test creates multiple entities of the same type, use `uniqueSubId()` or provide a `tag`:
+
+```kotlin
+val buyer = uniqueName("user", tag = "buyer")   // "user-4kvt31-buyer"
+val seller = uniqueName("user", tag = "seller") // "user-4kvt31-seller"
+val order1 = uniqueSubId()                     // "4kvt31-1"
+val order2 = uniqueSubId()                     // "4kvt31-2"
+```
+
+See [Recommended Patterns](recommended-patterns.md#make-sure-test-data-is-distinct) and [Running Tests](running-tests.md#test-identification-and-data-isolation) for details and configuration options.
+
+
 Use Extension Functions
 -----------------------
 
