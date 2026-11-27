@@ -66,13 +66,13 @@ abstract class Application<T: ApplicationPage<T>>: AutoCloseable {
     val consoleMessages: MutableList<ConsoleMessage> = mutableListOf()
 
     /**
-     * Page errors captured during the current test run.
+     * Page errors (uncaught exceptions in the page) captured during the current test run - every one of them, whether
+     * it was expected, tolerated as transient, or failed the test.
      *
-     * Printed to stdout after each test. Errors that would normally fail the test are added here
-     * only if they were registered with [expectError].
+     * Printed to stdout after each test via [TestBase.printConsoleLogsAndErrors].
      */
     val pageErrors: MutableList<String> = mutableListOf()
-    private val expectedErrors: MutableList<ErrorPredicate> = mutableListOf()
+    private val expected: MutableList<ErrorPredicate> = mutableListOf()
 
     /**
      * Transient transport errors tolerated during the current test run - see [tolerateTransientErrors].
@@ -152,41 +152,77 @@ abstract class Application<T: ApplicationPage<T>>: AutoCloseable {
     }
 
     /**
-     * Register an error predicate that suppresses test failure for matching console errors or page errors.
+     * Whether the console guard judges [message]. Page errors are always judged.
      *
-     * Errors matching the predicate are still recorded in [consoleMessages] or [pageErrors] respectively.
+     * A judged message fails the test unless it matches a predicate registered with [expect], or is a transient
+     * transport error while [tolerateTransientErrors] is on. A message that is not judged is only recorded in
+     * [consoleMessages].
+     *
+     * By default the guard judges console errors. Override to judge more - for example a warning a framework emits
+     * for a defect it cannot report as an error - and keep the default by calling `super`:
+     *
+     * ```kotlin
+     * override fun isGuarded(message: ConsoleMessage) =
+     *     super.isGuarded(message) || (message.type() == "warning" && "NG0956" in message.text())
+     * ```
+     *
+     * Only the selection is overridable: how a judged message is handled stays the same for every application, so an
+     * override cannot switch off [expect] or the transient-error tolerance.
      */
-    fun expectError(pred: ErrorPredicate) {
-        expectedErrors += pred
+    protected open fun isGuarded(message: ConsoleMessage): Boolean = message.type() == "error"
+
+    /**
+     * Register a predicate that keeps a matching judged console message or page error from failing the test.
+     *
+     * Matching messages and errors are still recorded in [consoleMessages] and [pageErrors]. Which console messages
+     * are judged at all is decided by [isGuarded].
+     */
+    fun expect(pred: ErrorPredicate) {
+        expected += pred
     }
 
     /**
-     * Register an exact error message that suppresses test failure for a matching console or page error.
+     * Register an exact text that keeps a matching judged console message or page error from failing the test.
      *
-     * Equivalent to `expectError { it == message }`.
+     * Equivalent to `expect { it == message }`.
      */
-    fun expectError(message: String) {
-        expectError { it == message }
+    fun expect(message: String) {
+        expect { it == message }
+    }
+
+    /** Equivalent to [expect]; renamed because it also covers judged warnings, not only errors. */
+    @Deprecated("Renamed: it also covers judged warnings, not only errors", ReplaceWith("expect(pred)"))
+    fun expectError(pred: ErrorPredicate) = expect(pred)
+
+    /** Equivalent to [expect]; renamed because it also covers judged warnings, not only errors. */
+    @Deprecated("Renamed: it also covers judged warnings, not only errors", ReplaceWith("expect(message)"))
+    fun expectError(message: String) = expect(message)
+
+    private enum class Verdict { EXPECTED, TRANSIENT, FAILURE }
+
+    private fun verdictOn(text: String): Verdict = when {
+        expected.any { it(text) } -> Verdict.EXPECTED
+        tolerateTransientErrors && isTransientError(text) -> Verdict.TRANSIENT
+        else -> Verdict.FAILURE
     }
 
     /**
-     * Decide what to do with an error the browser reported: fail the test, or let it pass.
+     * Act on a judged console message or page error, already recorded by the caller.
      *
-     * Fails unless the error was registered with [expectError], or is a transient transport error and
-     * [tolerateTransientErrors] is on - a tolerated one is recorded in [transientErrors] and printed straight
-     * away, so it stays visible in the test output even if the test then passes.
-     *
-     * @return `true` if the caller should record the error as a regular error of the test run, `false` if it was
-     *   tolerated as transient and has already been recorded in [transientErrors].
+     * An expected one passes silently. A transient one is recorded in [transientErrors] and printed straight away,
+     * so it stays visible in the test output even if the test then passes. Anything else fails the test: the
+     * [AssertionError] thrown here, inside Playwright's event dispatch, surfaces from whichever Playwright call the
+     * test is making.
      */
-    private fun checkError(kind: String, text: String): Boolean {
-        if (expectedErrors.any { p -> p.invoke(text) }) return true
-        if (tolerateTransientErrors && isTransientError(text)) {
-            transientErrors += text
-            println("Tolerated transient error (#${transientErrors.size} of this test): $text")
-            return false
+    private fun judge(kind: String, text: String) {
+        when (verdictOn(text)) {
+            Verdict.EXPECTED -> {}
+            Verdict.TRANSIENT -> {
+                transientErrors += text
+                println("Tolerated transient error (#${transientErrors.size} of this test): $text")
+            }
+            Verdict.FAILURE -> throw AssertionError("$kind: $text")
         }
-        throw AssertionError("$kind: $text")
     }
 
     /**
@@ -210,15 +246,12 @@ abstract class Application<T: ApplicationPage<T>>: AutoCloseable {
             val new = context.newPage()
             configureNewPage(new)
             new.onConsoleMessage {
-                if (it.type() == "error") {
-                    checkError("Caught logged error", it.text())
-                }
                 consoleMessages += it
+                if (isGuarded(it)) judge("Caught logged ${it.type()}", it.text())
             }
             new.onPageError {
-                if (checkError("Caught page error", it)) {
-                    pageErrors += it
-                }
+                pageErrors += it
+                judge("Caught page error", it)
             }
             new.navigate(baseUrl)
             new

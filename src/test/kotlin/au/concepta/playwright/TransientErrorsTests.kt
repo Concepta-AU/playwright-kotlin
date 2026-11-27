@@ -114,7 +114,7 @@ class TransientErrorsTests {
     @Test
     fun `an expected error takes precedence over transient handling`() {
         ErrorReportingApp().use { app ->
-            app.expectError(TRANSIENT)
+            app.expect(TRANSIENT)
             val page = app.start().page
             page.evaluate("() => console.error(${TRANSIENT.quoted()})")
             page.title()
