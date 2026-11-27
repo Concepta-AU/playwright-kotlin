@@ -52,11 +52,22 @@ automatically if it disconnects.
 
 ### Console and Page Errors
 
-By default, any `console.error` or `pageerror` emitted during a test will fail it. To expect and suppress specific errors:
+By default, any `console.error` or `pageerror` emitted during a test will fail it. To expect and suppress specific ones:
 
 ```kotlin
-app.expectError("Script error.")
-app.expectError { it.contains("Expected error pattern") }
+app.expect("Script error.")
+app.expect { it.contains("Expected error pattern") }
+```
+
+(`expectError` is the deprecated former name of `expect`.)
+
+To make other console messages fail a test as well - a warning a framework emits for a real defect, say - override
+`isGuarded` in the `Application` subclass. It chooses which console messages are judged; a judged message fails the
+test unless it is expected or transient (see below), the same as a console error:
+
+```kotlin
+override fun isGuarded(message: ConsoleMessage) =
+    super.isGuarded(message) || (message.type() == "warning" && "NG0956" in message.text())
 ```
 
 Collected console messages and page errors are printed to stdout after each test.
