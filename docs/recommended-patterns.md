@@ -107,6 +107,14 @@ This is on the subclass of `Application` that is used. Each of the methods repre
 `loginIfNeeded()` will check if we are on the login page and go through the login process if we are. Then the matching
 navigation link is clicked.
 
+`start()` waits for the start page, so only use it where the browser is expected to be there. To continue from
+wherever the browser is - a logout page, say - use the protected `currentPage` or `navigate(url)`, and wrap the result
+in the page object you expect:
+
+```kotlin
+    fun openHomeSigningIn(): StartPage = StartPage(navigate(baseUrl))
+```
+
 
 Use Consistent Method Names
 ---------------------------

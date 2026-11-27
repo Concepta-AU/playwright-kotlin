@@ -228,9 +228,31 @@ abstract class Application<T: ApplicationPage<T>>: AutoCloseable {
     /**
      * Provide the representation of the page the application will start with.
      *
-     * This should match the browser's view after the base URL was opened.
+     * This should match the browser's view after the base URL was opened: the result is built with
+     * [getInitialApplicationPage], so it waits for the start page. If the test is already running and the browser
+     * may be somewhere else, use [currentPage] or [navigate] instead.
      */
     fun start(): T = getInitialApplicationPage(getBrowserPage())
+
+    /**
+     * The browser page of the current test, without checking it against the start page.
+     *
+     * Starts the test, opening the base URL, if none is running yet. Use it in subclasses to act on whatever page the
+     * browser is showing, then wrap the result in the page object expected afterwards.
+     */
+    protected val currentPage: Page get() = getBrowserPage()
+
+    /**
+     * Navigate the current browser page to [url] and return it, starting the test first if none is running.
+     *
+     * Unlike `start().page.navigate(url)` this does not wait for the start page before leaving, so it works from any
+     * page the browser happens to be on. Wrap the result in the page object the navigation leads to:
+     *
+     * ```kotlin
+     * fun openHome(): HomePage = HomePage(navigate(baseUrl))
+     * ```
+     */
+    protected fun navigate(url: String): Page = currentPage.also { it.navigate(url) }
 
     /**
      * Provide the representation of the page the application will start with.
